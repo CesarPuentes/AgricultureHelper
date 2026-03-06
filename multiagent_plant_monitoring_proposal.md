@@ -77,22 +77,27 @@ Drawing from the **Unified Theory of Agents** taxonomy:
 
 ### 3.1 👁️ Vision Agent
 
-**Purpose**: Provide a frictionless, universal baseline for plant health by tracking "greenness" over time, independent of plant species. 
+**Purpose**: Provide a frictionless baseline for plant health by tracking visual changes (size, color, anomalies). Because hardware constraints dictate what computer vision can achieve, the Vision Agent scales across **three distinct hardware tiers**:
+
+**Tier 1: Ultra-Low Cost / Remote Edge (Raspberry Pi, Offline)**
+*   **The Problem:** Cannot run heavy Vision-Language Models (VLMs); zero budget; spotty or zero internet.
+*   **The Solution:** The Vision Agent acts entirely as a **"Dumb Green Pixel Extractor"**. A tiny Python script (OpenCV) runs hourly on a CPU, extracting the percentage of green pixels as a proxy for health.
+*   **Agentic Logic:** When the green count drops unexpectedly, the Vision Agent lacks the "brain" to diagnose the issue. Instead, the Multi-Agent System becomes an **Investigation Router**. It checks the **Sensor Agent** (Did moisture drop?). If sensors are normal, it pings the **Farmer Agent** via SMS/Local Chat: *"Green canopy dropped 12% in plot 4, sensors are normal. Can you manually inspect this image for pests?"*
+
+**Tier 2: Medium-End Local (Consumer GPU, e.g., RTX 3060/4060 12GB)**
+*   **The Problem:** Needs automation and intelligent diagnosis but wants to avoid recurring cloud API costs or relies on a local farm server.
+*   **The Solution:** The 'Fast Brain' still uses OpenCV/PlantCV to count green pixels cheaply all day. However, when an anomaly is triggered, the 'Slow Brain' wakes up. The agent locally loads a quantized VLM (e.g., **LLaVA**, **Moondream2**, **Qwen-VL**) on the GPU to analyze the image and diagnose the specific disease or pest before alerting the farmer.
+
+**Tier 3: Enterprise / Commercial Greenhouse (Cloud APIs & Servers)**
+*   **The Problem:** High scale, complex mixed crops, high budget, requires maximum accuracy.
+*   **The Solution:** Employs specialized CNNs (trained via **UPGen** synthetic data) to actively count exact fruit yields and leaf area. When anomalies occur, the agent makes API calls to massive Multimodal LLMs (e.g., **Gemini Pro Vision**, **GPT-4o**) for highly accurate, expert-level diagnosis cross-referenced against massive RAG vector databases.
 
 | Aspect | Detail |
 |:-------|:-------|
-| **Model** | **Local**: VLM (e.g., LLaVA, Moondream2, Qwen-VL) invoked only on anomalies.<br/>**Cloud fallback**: API-based Multimodal LLM |
-| **Tools** | **HSV Green Pixel Extractor** (Simple classical CV thresholding via OpenCV/PlantCV), camera capture API |
-| **Training / Data**| **Zero-Shot / No Training Required** (The beauty of tracking pure color is that green is green, regardless if it's mint or peppers). |
-| **RAG source** | Pest/disease knowledge base with reference images (only used by the VLM for diagnosis). |
-| **Output** | Structured diagnosis: `{disease: "none", green_pixel_ratio: 0.65, health_trend: "stable", confidence: 0.92}` |
-
-**A Frictionless MVP Approach (The "Greenness Proxy")**:
-The absolute simplest and most reliable way to monitor any plant species without retraining neural networks or generating synthetic datasets (UPGen) is to treat computer vision purely as a **"Dumb Green Pixel Counter"**. 
-
-1. **The Fast Brain (Universal Health Tracker):** Every hour, a tiny Python script (using OpenCV or PlantCV) extracts the image, converts it to HSV color space, and counts the percentage of pixels that fall within the "healthy green" spectrum.
-2. **Species-Agnostic Proxy:** This simple number acts as a universal proxy for both growth (more green pixels = the canopy is expanding) and health (fewer green pixels = leaves are yellowing or dropping). If you swap a mint field for peppers, the math doesn't change: a drop in green pixels mathematically equates to a drop in canopy health.
-3. **The Slow Brain (On-Demand Agent):** If a time-series algorithm (like Scikit-Learn `IsolationForest`) detects that the "green ratio" has stalled or dropped unexpectedly, it acts as an alarm. *Only then* does the system wake up the VLM (LLaVA/Moondream2) to look at the image and deduce *why* the green is disappearing (e.g., pests, necrosis, wilting).
+| **Model** | **Tier 1**: OpenCV only. **Tier 2**: Local VLM (LLaVA). **Tier 3**: Cloud API (Gemini/GPT-4o) |
+| **Tools** | **PlantCV / OpenCV** (for all tiers to establish normal baselines cheaply) |
+| **Training**| **UPGen** (Optional for Tier 3: synthetic data for precise crop-specific yield tracking) |
+| **Output** | Tier 1: `{anomaly: true, green_ratio_drop: 12%}` <br> Tier 3: `{disease: "early_blight", confidence: 0.92}` |
 
 ### 3.2 📡 Sensor Agent
 
@@ -194,11 +199,12 @@ A **Hybrid RAG** system serving all agents:
 
 | Layer | Technology | Rationale |
 |:------|:----------|:----------|
-| **Orchestration** | **LangGraph** (StateGraph) | Proven for hierarchical MAS with conditional routing; Python-native |
-| **Vision model** | **Local**: LLaVA, Moondream2, Qwen-VL<br/>**Cloud**: Gemini Pro Vision / GPT-4o | Local VLMs offer offline independence; cloud APIs offer higher reasoning. |
-| **Computer Vision Tools**| **PlantCV** & **UPGen** | PlantCV for precise botanical metrics (size, color); UPGen for synthetic data generation to train offline local models. |
-| **Sensor processing** | **Qwen 2.5 7B** or **Phi-3-Mini** on edge device | Small, efficient, runs on local CPU gateway entirely offline. |
-| **Conversational model** | **Local**: Llama-3 (8B), Mistral-7B<br/>**Cloud**: Gemini Pro / GPT-4o | Local models ensure the farmer can chat without internet connectivity. |
+| **Orchestration** | **LangGraph** (Python) | Proven for hierarchical MAS with conditional routing. Runs on anything (Pi to Cloud). |
+| **Vision (Tier 1)** | **OpenCV / PlantCV** | Runs on a $15 Raspberry Pi CPU. Extracts HSV green pixels as a universal health proxy. |
+| **Vision (Tier 2)** | **LLaVA via Ollama** | Runs on a 12GB Consumer GPU. Diagnoses anomalies when the green pixel count drops. |
+| **Vision (Tier 3)** | **Gemini Pro / GPT-4o Vision** | Cloud API for massive commercial scale; highest accuracy diagnosis. |
+| **Sensor processing** | **SciKit-Learn** (Tier 1) or **Phi-3-Mini** (Tier 2) | SciKit Isolation Forests can run on a potato. Phi-3 requires edge NPUs or local servers. |
+| **Farmer Agent** | **SMS/WhatsApp API** or **Local Gradio UI** | Ensures farmers can get alerts anywhere, even on feature phones (SMS via Twilio for Tier 1). |
 | **Vector DB** | **ChromaDB** (local) or **Vertex AI Vector Search** (cloud) | Depends on scale and deployment model |
 | **IoT connectivity** | **MQTT** → time-series DB (InfluxDB / TimescaleDB) | Industry-standard for sensor streams |
 | **External tool protocol** | **MCP** | Standardized tool schemas, vendor-agnostic |
