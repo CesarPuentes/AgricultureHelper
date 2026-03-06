@@ -255,14 +255,19 @@ graph LR
 
 ---
 
-## 8. MVP Roadmap (Phased)
+## 8. Development Plan: Tier 1 MVP (Ultra-Low Cost / Edge)
 
-| Phase | Scope | Duration |
-|:------|:------|:---------|
-| **Phase 1** | **Frictionless MVP**: "Dumb Green Pixel Counter" (OpenCV/PlantCV) for continuous health proxy + Farmer Agent (chat) + Basic VLM Diagnosis on Anomalies | 4–6 weeks |
-| **Phase 2** | Sensor Agent (IoT anomalies) + Supervisor routing + Blackboard integration | 4–6 weeks |
-| **Phase 3** | Integration Agent (weather + irrigation control with HITL) | 3–4 weeks |
-| **Phase 4** | Advanced Vision Ops (UPGen crop-specific CNNs for precise yield/leaf counting) | 4–6 weeks |
+This roadmap focuses entirely on delivering a working **Tier 1 (Raspberry Pi / Offline)** system. The architecture is intentionally designed around a **Blackboard pattern** and **LangGraph**, ensuring that Tier 2 (Local GPU VLMs) and Tier 3 (Cloud APIs) can be seamlessly "plugged in" as new nodes later without rewriting the core logic.
+
+| Phase | Developer Focus | Key Deliverables |
+|:------|:----------------|:-----------------|
+| **Phase 1: The "Dumb" Extractors** | Build the continuous data pipelines (No AI yet). | 1. Python script (OpenCV) extracting HSV Green Ratio from a camera.<br>2. MQTT broker pipeline to ingest DHT11/soil sensors.<br>3. Store all raw data in a local SQLite/TimescaleDB. |
+| **Phase 2: The Anomaly Brain** | Implement cheap, edge-friendly anomaly detection. | 1. SciKit-Learn `IsolationForest` to monitor the Green Ratio and Sensors.<br>2. The **Blackboard** (`PlantHealthState`): A unified JSON state that holds the current numbers and anomaly flags. |
+| **Phase 3: The Investigation Router** | Build the Multi-Agent routing logic (The "Supervisor"). | 1. LangGraph StateGraph that reads the Blackboard.<br>2. Logic rule: *If Green Ratio drops AND Soil Moisture is low -> Flag "Water Stress".*<br>3. Logic rule: *If Green Ratio drops AND Sensors are normal -> Flag "Unknown Visual Anomaly".* |
+| **Phase 4: The Farmer Interface** | Human-in-the-Loop acting as the "VLM". | 1. Implement the **Farmer Agent** via a local Gradio UI or Twilio SMS.<br>2. When "Unknown Visual Anomaly" triggers, the system texts the farmer the OpenCV image for manual diagnosis.<br>3. Farmer logs the diagnosis back into the system to close the loop. |
+
+**Future-Proofing for Tier 2/3:**
+When upgrading to Tier 2/3, Phase 1 and 2 remain entirely unchanged. We simply add a new Node to the LangGraph in Phase 3: instead of texting the Farmer immediately, the Router first sends the image to a VLM (Ollama/GPT-4o) and writes the AI's diagnosis to the Blackboard.
 
 ---
 
