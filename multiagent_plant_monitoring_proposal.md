@@ -77,16 +77,22 @@ Drawing from the **Unified Theory of Agents** taxonomy:
 
 ### 3.1 👁️ Vision Agent
 
-**Purpose**: Analyze plant images for disease, pest damage, growth stage, and nutrient deficiency.
+**Purpose**: Provide a frictionless, universal baseline for plant health by tracking "greenness" over time, independent of plant species. 
 
 | Aspect | Detail |
 |:-------|:-------|
-| **Model** | Multimodal LLM (e.g., Gemini Pro Vision, Llama 3.2 Vision 90B, GPT-4o) |
-| **Tools** | Camera capture API, drone image retrieval, image preprocessing (resize, crop, normalize) |
-| **RAG source** | Pest/disease knowledge base with reference images |
-| **Output** | Structured diagnosis: `{disease: "early_blight", confidence: 0.87, affected_area: "top_leaves", severity: "moderate"}` |
+| **Model** | **Local**: VLM (e.g., LLaVA, Moondream2, Qwen-VL) invoked only on anomalies.<br/>**Cloud fallback**: API-based Multimodal LLM |
+| **Tools** | **HSV Green Pixel Extractor** (Simple classical CV thresholding via OpenCV/PlantCV), camera capture API |
+| **Training / Data**| **Zero-Shot / No Training Required** (The beauty of tracking pure color is that green is green, regardless if it's mint or peppers). |
+| **RAG source** | Pest/disease knowledge base with reference images (only used by the VLM for diagnosis). |
+| **Output** | Structured diagnosis: `{disease: "none", green_pixel_ratio: 0.65, health_trend: "stable", confidence: 0.92}` |
 
-**Strategy**: Use **Corrective RAG** — after retrieving similar disease images, a verification step confirms the match quality before generating a diagnosis. This prevents false positives.
+**A Frictionless MVP Approach (The "Greenness Proxy")**:
+The absolute simplest and most reliable way to monitor any plant species without retraining neural networks or generating synthetic datasets (UPGen) is to treat computer vision purely as a **"Dumb Green Pixel Counter"**. 
+
+1. **The Fast Brain (Universal Health Tracker):** Every hour, a tiny Python script (using OpenCV or PlantCV) extracts the image, converts it to HSV color space, and counts the percentage of pixels that fall within the "healthy green" spectrum.
+2. **Species-Agnostic Proxy:** This simple number acts as a universal proxy for both growth (more green pixels = the canopy is expanding) and health (fewer green pixels = leaves are yellowing or dropping). If you swap a mint field for peppers, the math doesn't change: a drop in green pixels mathematically equates to a drop in canopy health.
+3. **The Slow Brain (On-Demand Agent):** If a time-series algorithm (like Scikit-Learn `IsolationForest`) detects that the "green ratio" has stalled or dropped unexpectedly, it acts as an alarm. *Only then* does the system wake up the VLM (LLaVA/Moondream2) to look at the image and deduce *why* the green is disappearing (e.g., pests, necrosis, wilting).
 
 ### 3.2 📡 Sensor Agent
 
@@ -107,7 +113,7 @@ Drawing from the **Unified Theory of Agents** taxonomy:
 
 | Aspect | Detail |
 |:-------|:-------|
-| **Model** | Capable conversational LLM (e.g., Gemini Pro, GPT-4o, Claude) |
+| **Model** | **Local**: Llama-3-8B-Instruct, Mistral-7B.<br/>**Cloud**: Capable conversational LLM (e.g., Gemini Pro, GPT-4o) |
 | **Tools** | Text-to-speech / speech-to-text (for voice in the field), chat UI, notification system |
 | **Memory** | **Episodic** (remembers past conversations: "Last week you mentioned yellowing in plot 5") + **Semantic** (crop knowledge) |
 | **RAG source** | Local crop management guides, farm-specific historical data |
@@ -121,7 +127,7 @@ Drawing from the **Unified Theory of Agents** taxonomy:
 
 | Aspect | Detail |
 |:-------|:-------|
-| **Model** | Tool-calling LLM (can be a smaller, efficient model) |
+| **Model** | **Local**: Hermes-2-Pro, Llama-3-Groq-Tool-Use.<br/>**Cloud**: Tool-calling LLM API |
 | **Tools** | Weather API, irrigation controller API, market price API, ERP connector, notification service (SMS/email) |
 | **Protocol** | **MCP** (Model Context Protocol) for standardized tool access; **A2A** for communicating with agents from partner platforms |
 | **Output** | Executed actions: irrigation adjustments, weather-informed alerts, inventory orders |
@@ -189,9 +195,10 @@ A **Hybrid RAG** system serving all agents:
 | Layer | Technology | Rationale |
 |:------|:----------|:----------|
 | **Orchestration** | **LangGraph** (StateGraph) | Proven for hierarchical MAS with conditional routing; Python-native |
-| **Vision model** | **Gemini Pro Vision** or **Llama 3.2 Vision** (local via Ollama) | Best multimodal results; local option for privacy/cost |
-| **Sensor processing** | **Qwen 2.5 7B** on edge device | Small, efficient, runs on CPU gateway |
-| **Conversational model** | **Gemini Pro** or **GPT-4o** | Strong reasoning + conversation + multilingual |
+| **Vision model** | **Local**: LLaVA, Moondream2, Qwen-VL<br/>**Cloud**: Gemini Pro Vision / GPT-4o | Local VLMs offer offline independence; cloud APIs offer higher reasoning. |
+| **Computer Vision Tools**| **PlantCV** & **UPGen** | PlantCV for precise botanical metrics (size, color); UPGen for synthetic data generation to train offline local models. |
+| **Sensor processing** | **Qwen 2.5 7B** or **Phi-3-Mini** on edge device | Small, efficient, runs on local CPU gateway entirely offline. |
+| **Conversational model** | **Local**: Llama-3 (8B), Mistral-7B<br/>**Cloud**: Gemini Pro / GPT-4o | Local models ensure the farmer can chat without internet connectivity. |
 | **Vector DB** | **ChromaDB** (local) or **Vertex AI Vector Search** (cloud) | Depends on scale and deployment model |
 | **IoT connectivity** | **MQTT** → time-series DB (InfluxDB / TimescaleDB) | Industry-standard for sensor streams |
 | **External tool protocol** | **MCP** | Standardized tool schemas, vendor-agnostic |
@@ -246,10 +253,10 @@ graph LR
 
 | Phase | Scope | Duration |
 |:------|:------|:---------|
-| **Phase 1** | Sensor Agent (anomaly alerts) + Farmer Agent (chat) + basic Blackboard | 4–6 weeks |
-| **Phase 2** | Vision Agent (disease detection with RAG) + Supervisor routing | 4–6 weeks |
+| **Phase 1** | **Frictionless MVP**: "Dumb Green Pixel Counter" (OpenCV/PlantCV) for continuous health proxy + Farmer Agent (chat) + Basic VLM Diagnosis on Anomalies | 4–6 weeks |
+| **Phase 2** | Sensor Agent (IoT anomalies) + Supervisor routing + Blackboard integration | 4–6 weeks |
 | **Phase 3** | Integration Agent (weather + irrigation control with HITL) | 3–4 weeks |
-| **Phase 4** | Auditor verification + episodic memory + edge deployment | 4–6 weeks |
+| **Phase 4** | Advanced Vision Ops (UPGen crop-specific CNNs for precise yield/leaf counting) | 4–6 weeks |
 
 ---
 
