@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 from plantcv import plantcv as pcv
+import os
 
 # Optional: Turn off plotting to save memory on the Raspberry Pi
 pcv.params.debug = "None" 
@@ -43,10 +44,18 @@ def calculate_living_canopy(image_path):
 
 # --- Simulation (Hourly Cron Job) ---
 if __name__ == "__main__":
-    test_images = ["Gemini_clorosis.png", "Gemini_sana1.png", "Gemini_clorosis2.png", 
-                   "Gemini_sana2.png", "Gemini_clorosis3.png", "Gemini_sana3.png"]
+    path = os.getcwd()
+    print("path:", path)
+    test_images = [
+        "Gemini_sana1.png", 
+        "Gemini_sana2.png", 
+        "Gemini_sana3.png", 
+        "Gemini_clorosis.png", 
+        "Gemini_clorosis2.png", 
+        "Gemini_clorosis3.png"
+    ]
 
     for image_file in test_images:
-        living_canopy_coverage = calculate_living_canopy(image_file)
+        living_canopy_coverage = calculate_living_canopy(f"{path}/test_images/{image_file}")
         if living_canopy_coverage is not None:
             print(f"[{image_file}] Living Canopy Coverage (ExG): {living_canopy_coverage}%")
