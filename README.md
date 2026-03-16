@@ -21,5 +21,28 @@ The architecture is built on a **Blackboard Pattern** and orchestrated via **Lan
 *   **Phase 4: The Farmer Interface**
     *   Deploy a local SMS or Gradio UI to alert the human farmer "In The Loop" whenever an unknown visual anomaly occurs.
 
+## 🛠️ How to Run
+
+### 1. Requirements
+Ensure you have the dependencies installed (preferably in a virtual environment):
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Start the Backend (FastAPI Server)
+The server processes the images and runs the vision algorithms.
+```bash
+uvicorn src.api.app:app --reload
+```
+The API will be available at `http://localhost:8000`.
+
+### 3. Start the Frontend (Streamlit App)
+The frontend provides a user interface for uploading and analyzing images.
+```bash
+streamlit run frontend_test.py
+```
+The interface will open in your browser at `http://localhost:8501`.
+
 ---
+
 *For a full breakdown of the agent design and theoretical architecture (including scaling to Tier 2 and Tier 3), see the `multiagent_plant_monitoring_proposal.md`.*

@@ -1,8 +1,8 @@
 from fastapi.testclient import TestClient
-from app import app
+from src.api.app import app
 import os
 
-from vision_extractor import calculate_living_canopy, count_plants
+from src.core.vision_extractor import calculate_living_canopy, count_plants
 
 client = TestClient(app)
 

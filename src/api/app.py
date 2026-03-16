@@ -3,8 +3,8 @@ from pydantic import BaseModel
 from typing import Optional
 import os
 
-from models import PlantHealthState, VisionData
-from vision_extractor import calculate_living_canopy, count_plants
+from src.models.models import PlantHealthState, VisionData
+from src.core.vision_extractor import calculate_living_canopy, count_plants
 
 app = FastAPI(
     title="AgricultureHelper Tier 1 Agent",
@@ -52,4 +52,4 @@ async def analyze_plant_image(request: AnalyzeRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("src.api.app:app", host="0.0.0.0", port=8000, reload=True)
