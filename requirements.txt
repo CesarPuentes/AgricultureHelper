@@ -90,3 +90,5 @@ wcwidth==0.6.0
 xarray==2026.2.0
 xsdata==26.2
 zict==3.0.0
+streamlit
+requests

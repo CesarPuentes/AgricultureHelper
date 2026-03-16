@@ -67,8 +67,6 @@ if __name__ == "__main__":
         try:
             result = count_plants(image_path=test_img)
             print(f"Resultado -> Plantas detectadas: {result}")
-            # print(f"Resultado -> Área total (píxeles): {result.total_area_pixels}")
-            # print(f"Resultado -> Cobertura Canopy: {result.canopy_coverage_percent}%")
         except Exception as e:
             print(f"Error al ejecutar count_plants: {e}")
     else:

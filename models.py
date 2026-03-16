@@ -3,33 +3,14 @@ from typing import Optional, List
 from datetime import datetime
 
 
-class PlantSizeData(BaseModel):
-    """Size and shape measurements for a single plant segment."""
-    label: str = Field(..., description="Segment identifier, e.g. 'plant_1'.")
-    area: float = Field(..., description="Object area in pixels.")
-    height: float = Field(..., description="Object bounding height in pixels.")
-    width: float = Field(..., description="Object bounding width in pixels.")
-    perimeter: float = Field(..., description="Object perimeter in pixels.")
-    solidity: float = Field(..., description="Ratio of area to convex hull area (0-1).")
-
-
-class PlantCountData(BaseModel):
-    """Watershed-based plant count and per-plant size measurements."""
-    estimated_count: int = Field(..., description="Estimated number of individual plants.")
-    plants: List[PlantSizeData] = Field(
-        default_factory=list,
-        description="Per-plant size measurements (may be empty if only counting)."
-    )
-
-
 class VisionData(BaseModel):
     living_coverage_pct: float = Field(
         ...,
         description="Percentage of the image area covered by living green tissue (ExG index)."
     )
-    plant_count: Optional[PlantCountData] = Field(
+    plant_count: Optional[int] = Field(
         None,
-        description="Plant count and size data from watershed segmentation."
+        description="Plant count from watershed segmentation."
     )
 
 
