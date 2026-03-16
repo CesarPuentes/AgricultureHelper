@@ -36,7 +36,7 @@ class PlantHealthState(BaseModel):
 
     # Agent Outputs
     vision: Optional[VisionData] = Field(None, description="Data extracted by the Vision Agent pipeline.")
-    sensors: Optional[SensorData] = Field(None, description="Data gathered by the physical Sensor Agent.")
+    sensors: Optional[PlantSensorHistory] = Field(None, description="Data gathered by the physical Sensor Agent.")
 
     # LangGraph Routing Flags
     requires_farmer_review: bool = Field(

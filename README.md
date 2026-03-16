@@ -31,17 +31,24 @@ pip install -r requirements.txt
 
 ### 2. Start the Backend (FastAPI Server)
 The server processes the images and runs the vision algorithms.
+### 🏃 Cómo ejecutar
+
+#### 1. Backend (FastAPI)
 ```bash
 uvicorn src.api.app:app --reload
 ```
-The API will be available at `http://localhost:8000`.
 
-### 3. Start the Frontend (Streamlit App)
-The frontend provides a user interface for uploading and analyzing images.
+#### 2. Frontend (Streamlit)
 ```bash
 streamlit run frontend_test.py
 ```
 The interface will open in your browser at `http://localhost:8501`.
+
+---
+
+### 📷 Consideraciones Técnicas: Ground Sample Distance (GSD)
+Actualmente, el algoritmo de visión (`src/core/vision_extractor.py`) depende de umbrales estáticos en píxeles (ej. eliminar ruido menor a 200px). Esto significa que el sistema es susceptible a errores si la distancia de la cámara a la bandeja cambia (modificando el GSD). 
+*   **A futuro:** Se recomienda implementar un sistema de calibración dinámica (ej. usando un marcador físico de tamaño conocido en la bandeja) para que el algoritmo calcule la relación de *píxeles/cm* y ajuste los parámetros automáticamente sin importar la altura de la cámara.
 
 ---
 

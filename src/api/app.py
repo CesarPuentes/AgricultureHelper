@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 import os
 
@@ -16,6 +16,8 @@ app = FastAPI(
 class AnalyzeRequest(BaseModel):
     image_path: str
     plant_id: str = "unknown_plant"
+    rows: int = Field(6, description="Number of rows in the tray")
+    cols: int = Field(4, description="Number of columns in the tray")
 
 def _validate_image(path: str):
     if not os.path.exists(path):
@@ -31,7 +33,7 @@ async def analyze_plant_image(request: AnalyzeRequest):
     if coverage is None:
         raise HTTPException(status_code=500, detail="Vision extraction failed.")
 
-    plant_count = count_plants(request.image_path)
+    plant_count = count_plants(request.image_path, rows=request.rows, cols=request.cols)
     
     vision_data = VisionData(living_coverage_pct=coverage, plant_count=plant_count)
 

@@ -21,12 +21,6 @@ from plantcv.parallel import WorkflowInputs
 pcv.params.debug = "None"
 
 # ---------------------------------------------------------------------------
-# Constantes — Configuración de la bandeja (ajustable)
-# ---------------------------------------------------------------------------
-FILAS = 6
-COLUMNAS = 4
-
-# ---------------------------------------------------------------------------
 # Funciones auxiliares (privadas)
 # ---------------------------------------------------------------------------
 def _create_green_mask(image_path):
@@ -65,9 +59,10 @@ def calculate_living_canopy(image_path):
         return None
 
 
-def count_plants(image_path):
+def count_plants(image_path, rows=6, cols=4):
     """
     Segmenta, cuenta y registra métricas de las plantas en una bandeja.
+    Permite parametrizar el tamaño de la cuadrícula (rows x cols).
     """
 
     # --- Sección 1: Input/Output variables ---
@@ -97,8 +92,7 @@ def count_plants(image_path):
     a_fill = pcv.fill(bin_img=a_thresh, size=200)
 
     # --- Sección 3: Definir ROIs (Cuadrícula) ---
-    # Usamos las variables FILAS y COLUMNAS definidas arriba
-    rois = pcv.roi.auto_grid(mask=a_fill, nrows=FILAS, ncols=COLUMNAS, img=img)
+    rois = pcv.roi.auto_grid(mask=a_fill, nrows=rows, ncols=cols, img=img)
 
     # --- Sección 4: Crear etiquetas y conteo ---
     labeled_mask, num_plants = pcv.create_labels(mask=a_fill, rois=rois, roi_type="partial")
@@ -109,7 +103,7 @@ def count_plants(image_path):
     # --- Sección 5: Cálculo de áreas (individual y total) ---
     area_total_pixeles = 0
     print("\n" + "=" * 40)
-    print(f"REPORTE DETALLADO DE BANDEJA ({FILAS}x{COLUMNAS})")
+    print(f"REPORTE DETALLADO DE BANDEJA ({rows}x{cols})")
     print("-" * 40)
 
     for etiqueta in etiquetas_presentes:
