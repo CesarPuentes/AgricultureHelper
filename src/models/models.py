@@ -13,11 +13,18 @@ class VisionData(BaseModel):
         description="Plant count from watershed segmentation."
     )
 
-
-class SensorData(BaseModel):
-    temperature_c: Optional[float] = Field(None, description="Current ambient temperature in Celsius.")
+class SensorReading(BaseModel):
+    """Representa una única lectura en un momento específico."""
+    timestamp: datetime = Field(..., description="Timestamp of the specific reading.")
+    temperature_c: Optional[float] = Field(None, description="Ambient temperature in Celsius.")
+    light_lux: Optional[float] = Field(None, description="Light intensity in Lux.")
     soil_moisture_pct: Optional[float] = Field(None, description="Soil moisture percentage (0-100%).")
+    air_humidity_rh: Optional[float] = Field(None, description="Relative air humidity (0-100%).")
 
+class PlantSensorHistory(BaseModel):
+    """Agrupa los 10 días de historia para una planta específica."""
+    plant_id: str = Field(..., example="test_plant_01")
+    readings: List[SensorReading] = Field(..., description="List of 10 consecutive daily readings.")
 
 class PlantHealthState(BaseModel):
     """
