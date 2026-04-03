@@ -4,6 +4,10 @@ from PIL import Image
 import os
 import numpy as np
 from datetime import datetime, timedelta
+from src.database.manager import init_db, save_readings, get_recent_readings
+
+# Initialize DB
+init_db()
 
 # cantidad de muestras
 n = 10
@@ -164,5 +168,31 @@ with tab_sensors:
         avg_canopy = np.mean(st.session_state.canopy_results)
         delta_canopy = st.session_state.canopy_results[-1] - st.session_state.canopy_results[0]
         stat_c3.metric("Avg Canopy Coverage", f"{avg_canopy:.1f}%", delta=f"{delta_canopy:.1f}%")
+
+    st.divider()
+    if st.button("💾 Save history to Local Database", type="primary", use_container_width=True):
+        try:
+            readings_to_save = []
+            for i in range(n):
+                reading = {
+                    "plant_id": v_plant_id,
+                    "timestamp": timestamps[i],
+                    "air_humidity_rh": humidity_array[i],
+                    "soil_moisture_pct": soil_moisture_array[i],
+                    "temperature_c": heat_array[i],
+                    "light_lux": float(light_array[i]),
+                    "living_coverage_pct": st.session_state.canopy_results[i],
+                    "plant_count": int(st.session_state.count_results[i])
+                }
+                readings_to_save.append(reading)
+            
+            save_readings(readings_to_save)
+            st.success(f"Successfully saved {n} records to 'agriculture.db' for plant '{v_plant_id}'!")
+            
+            with st.expander("View Saved Data"):
+                recent = get_recent_readings(v_plant_id)
+                st.table(recent)
+        except Exception as e:
+            st.error(f"Error saving to database: {e}")
 
 

@@ -2,12 +2,16 @@
 vision_extractor.py
 -------------------
 Módulo de visión por computadora para análisis de bandejas de plantas.
-Incluye cálculo de cobertura verde (canopy) y conteo de plantas por cuadrícula.
+Incluye cálculo de cobertura verde (canopy), conteo de plantas por cuadrícula,
+y generación de mapas de diagnóstico visual para verificación humana.
 """
 
 # ---------------------------------------------------------------------------
 # Imports
 # ---------------------------------------------------------------------------
+import os
+from datetime import datetime
+
 import numpy as np
 import cv2
 from plantcv import plantcv as pcv
@@ -19,6 +23,9 @@ from plantcv.parallel import WorkflowInputs
 # Se sobreescribirá con args.debug más adelante.
 # ---------------------------------------------------------------------------
 pcv.params.debug = "None"
+
+# Default output directory for diagnostic maps
+_MAP_OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "debug_output")
 
 # ---------------------------------------------------------------------------
 # Funciones auxiliares (privadas)
@@ -42,27 +49,149 @@ def _create_green_mask(image_path):
     return original_color_image, mask
 
 
+def _ensure_output_dir(output_dir: str | None = None) -> str:
+    """Create output directory if it doesn't exist, return its path."""
+    out = output_dir or _MAP_OUTPUT_DIR
+    os.makedirs(out, exist_ok=True)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Mapa de Diagnóstico Visual
+# ---------------------------------------------------------------------------
+def generate_diagnostic_map(
+    image_path: str,
+    plant_id: str = "unknown",
+    output_dir: str | None = None,
+) -> dict:
+    """
+    Genera un mapa de diagnóstico visual con overlays de colores.
+
+    Produce un PNG anotado donde:
+      - Verde semitransparente = tejido vivo detectado
+      - Rojo semitransparente  = zonas NO verdes (suelo, maceta, tejido muerto)
+      - Contornos blancos      = bordes de las áreas verdes
+      - Texto                  = % de cobertura superpuesto
+
+    Esto permite al desarrollador humano confirmar visualmente que
+    las predicciones del pipeline de visión son correctas.
+
+    Args:
+        image_path: Ruta a la imagen de la planta/bandeja.
+        plant_id: Identificador de la planta (para el nombre del archivo).
+        output_dir: Directorio de salida. Default: debug_output/.
+
+    Returns:
+        dict con 'map_path', 'coverage_pct', y 'generated_at'.
+    """
+    out_dir = _ensure_output_dir(output_dir)
+    original, mask = _create_green_mask(image_path)
+
+    # --- Calcular cobertura ---
+    total_pixels = mask.size
+    living_pixels = np.count_nonzero(mask)
+    coverage_pct = round((living_pixels / total_pixels) * 100, 2)
+
+    # --- Crear canvas de overlay ---
+    overlay = original.copy()
+    h, w = mask.shape[:2]
+
+    # Overlay verde sobre tejido vivo
+    green_overlay = np.zeros_like(original)
+    green_overlay[:] = (0, 200, 0)  # BGR: verde brillante
+    living_mask_3ch = cv2.merge([mask, mask, mask]) > 0
+    overlay = np.where(living_mask_3ch, 
+                       cv2.addWeighted(original, 0.6, green_overlay, 0.4, 0),
+                       overlay)
+
+    # Overlay rojo sobre zonas muertas/suelo
+    red_overlay = np.zeros_like(original)
+    red_overlay[:] = (0, 0, 180)  # BGR: rojo
+    dead_mask_3ch = ~living_mask_3ch
+    overlay = np.where(dead_mask_3ch,
+                       cv2.addWeighted(original, 0.7, red_overlay, 0.3, 0),
+                       overlay)
+
+    # --- Dibujar contornos ---
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.drawContours(overlay, contours, -1, (255, 255, 255), 2)
+
+    # --- Agregar texto con estadísticas ---
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    text = f"Cobertura Verde: {coverage_pct}%"
+    text_size = cv2.getTextSize(text, font, 1.0, 2)[0]
+
+    # Fondo negro para legibilidad
+    cv2.rectangle(overlay, (10, 10), (20 + text_size[0], 20 + text_size[1] + 10),
+                  (0, 0, 0), -1)
+    cv2.putText(overlay, text, (15, 15 + text_size[1]),
+                font, 1.0, (255, 255, 255), 2, cv2.LINE_AA)
+
+    # Leyenda
+    legend_y = 30 + text_size[1] + 10
+    cv2.rectangle(overlay, (15, legend_y), (35, legend_y + 15), (0, 200, 0), -1)
+    cv2.putText(overlay, "Tejido Vivo", (42, legend_y + 13),
+                font, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+    cv2.rectangle(overlay, (15, legend_y + 25), (35, legend_y + 40), (0, 0, 180), -1)
+    cv2.putText(overlay, "Suelo / No-verde", (42, legend_y + 38),
+                font, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+
+    # --- Guardar ---
+    timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"diagnostic_map_{plant_id}_{timestamp_str}.png"
+    map_path = os.path.join(out_dir, filename)
+    cv2.imwrite(map_path, overlay)
+
+    return {
+        "map_path": map_path,
+        "coverage_pct": coverage_pct,
+        "generated_at": datetime.now().isoformat(),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Funciones públicas
 # ---------------------------------------------------------------------------
-def calculate_living_canopy(image_path):
+def calculate_living_canopy(image_path, save_map: bool = False, plant_id: str = "unknown"):
     """
     Calculate the percentage of the image covered by living green tissue.
+
+    Args:
+        image_path: Path to the plant image.
+        save_map: If True, also generates a diagnostic map PNG.
+        plant_id: Plant identifier (used in map filename).
+
+    Returns:
+        float: coverage percentage, or None on error.
+        If save_map=True, returns tuple (coverage_pct, map_info).
     """
     try:
         _, mask = _create_green_mask(image_path)
         total_pixels = mask.size
         living_pixels = np.count_nonzero(mask)
-        return round((living_pixels / total_pixels) * 100, 2)
+        coverage = round((living_pixels / total_pixels) * 100, 2)
+
+        if save_map:
+            map_info = generate_diagnostic_map(image_path, plant_id=plant_id)
+            return coverage, map_info
+
+        return coverage
     except Exception as e:
         print(f"Error processing canopy coverage: {e}")
         return None
 
 
-def count_plants(image_path, rows=6, cols=4):
+def count_plants(image_path, rows=6, cols=4, save_map: bool = False, plant_id: str = "unknown"):
     """
     Segmenta, cuenta y registra métricas de las plantas en una bandeja.
     Permite parametrizar el tamaño de la cuadrícula (rows x cols).
+
+    Args:
+        image_path: Path to the tray image.
+        rows: Number of rows in the grid.
+        cols: Number of columns in the grid.
+        save_map: If True, generates a diagnostic map PNG alongside analysis.
+        plant_id: Plant identifier for the map filename.
     """
 
     # --- Sección 1: Input/Output variables ---
@@ -151,6 +280,12 @@ def count_plants(image_path, rows=6, cols=4):
     # --- Sección 7: Guardar resultados ---
     pcv.outputs.save_results(filename=args.result, outformat="json")
 
+    # --- Sección 8: Mapa de diagnóstico (opcional) ---
+    map_info = None
+    if save_map:
+        map_info = generate_diagnostic_map(image_path, plant_id=plant_id)
+        print(f"Mapa de diagnóstico guardado en: {map_info['map_path']}")
+
     print(f"Análisis completado con éxito.")
 
-    return conteo_real
+    return conteo_real if not save_map else (conteo_real, map_info)
