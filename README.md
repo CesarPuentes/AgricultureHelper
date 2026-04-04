@@ -21,28 +21,61 @@ The architecture is built on a **Blackboard Pattern** and orchestrated via **Lan
 *   **Phase 4: The Farmer Interface**
     *   Deploy a local SMS or Gradio UI to alert the human farmer "In The Loop" whenever an unknown visual anomaly occurs.
 
-## 🛠️ How to Run
+## 🛠️ Cómo ejecutar el proyecto
 
-### 1. Requirements
-Ensure you have the dependencies installed (preferably in a virtual environment):
+### 1. Requisitos y Entorno Virtual
+Se recomienda utilizar un entorno virtual para instalar las dependencias de manera aislada:
 ```bash
+# Crear y activar entorno virtual
+python -m venv .venv
+source .venv/bin/activate  # En Linux/Mac
+# .venv\Scripts\activate   # En Windows
+
+# Instalar dependencias
 pip install -r requirements.txt
 ```
 
-### 2. Start the Backend (FastAPI Server)
-The server processes the images and runs the vision algorithms.
-### 🏃 Cómo ejecutar
+### 2. Levantar los Servicios
 
-#### 1. Backend (FastAPI)
+Para probar el flujo completo con la API y la interfaz visual:
+
+#### Backend (FastAPI)
+El servidor procesa las imágenes y ejecuta los algoritmos de visión por computadora.
 ```bash
 uvicorn src.api.app:app --reload
 ```
+La API estará disponible en `http://localhost:8000`.
 
-#### 2. Frontend (Streamlit)
+#### Frontend (Streamlit)
+La interfaz permite simular telemetría de sensores y probar imágenes a la API para ver el análisis en tiempo real.
 ```bash
 streamlit run frontend_test.py
 ```
-The interface will open in your browser at `http://localhost:8501`.
+La interfaz se abrirá en tu navegador en `http://localhost:8501`.
+
+### 📸 Pipeline de Visión y Mapas Diagnósticos
+
+El sistema de visión (ubicado en `src/core/vision_extractor.py`) está diseñado de forma modular para:
+- Calcular el porcentaje de cobertura verde viva (canopy).
+- Contar el número de plantas individuales analizando bandejas de cultivo en cuadrícula.
+- Identificar posibles enfermedades (mediante un modelo opcional de HuggingFace en `disease_classifier.py`).
+
+**Viendo los Mapas de Diagnóstico:**
+Al probar las imágenes desde el frontend o con los tests, el pipeline genera automáticamente un archivo de imagen combinado en formato PNG guardándolo en la carpeta `debug_output/`. Estos "mapas" proveen *feedback visual* verificable:
+- **Verde Semitransparente**: Capa superpuesta indicando el tejido verde/vivo detectado.
+- **Rojo Semitransparente**: Capa superpuesta indicando lo ignorado (suelo, maceta, o tejido muerto).
+- **Contornos Blancos**: Borde de las hojas o plantas para comprobar la exactitud de segmentación y conteo.
+- Valores como el Porcentaje de Cobertura quedan impresos sobre la propia imagen.
+
+#### Probar los scripts localmente en CLI
+También puedes probar las diferentes funciones y simulaciones de visión ejecutando los tests directamente en la consola de comandos:
+```bash
+# Correr el archivo de pruebas y generación unitaria
+python test_api.py
+
+# Correr la suite de pruebas unitarias
+pytest test_api.py
+```
 
 ---
 
