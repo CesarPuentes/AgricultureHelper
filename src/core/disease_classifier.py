@@ -13,6 +13,7 @@ No requiere GPU.
 """
 
 import logging
+import os
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ except ImportError:
 # Singleton del clasificador (lazy loading)
 # ---------------------------------------------------------------------------
 _classifier_instance = None
-_MODEL_NAME = "onuralp/resnet18-plantvillage"
+_MODEL_NAME = "gianlab/swin-tiny-patch4-window7-224-finetuned-plantdisease"
 
 
 def _get_classifier():
@@ -47,9 +48,11 @@ def _get_classifier():
     global _classifier_instance
     if _classifier_instance is None:
         logger.info(f"Cargando modelo '{_MODEL_NAME}' (primera ejecución descarga ~45MB)...")
+        token = os.getenv("HF_TOKEN")
         _classifier_instance = hf_pipeline(
             "image-classification",
             model=_MODEL_NAME,
+            token=token,
             device=-1,  # Forzar CPU
         )
         logger.info("Modelo cargado exitosamente.")

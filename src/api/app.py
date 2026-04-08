@@ -8,6 +8,9 @@ import os
 import shutil
 import numpy as np
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from src.models.models import PlantHealthState, VisionData, AlertResult, DiagnosticMapResult
 from src.core.vision_extractor import calculate_living_canopy, count_plants, generate_diagnostic_map
