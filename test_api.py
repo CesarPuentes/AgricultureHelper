@@ -16,7 +16,6 @@ client = TestClient(app)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEST_IMAGES_DIR = os.path.join(BASE_DIR, "test_images")
 
-MULTI_PLANT = os.path.join(TEST_IMAGES_DIR, "plants.png")
 HEALTHY_IMAGE = os.path.join(TEST_IMAGES_DIR, "Gemini_sana1.png")
 
 # ---------------------------------------------------------------------------
@@ -243,6 +242,9 @@ def test_classifier_status_endpoint():
 # ---------------------------------------------------------------------------
 # CLI quick-run
 # ---------------------------------------------------------------------------
+
+# Manual testing
+
 if __name__ == "__main__":
     print(f"Working dir: {BASE_DIR}\n")
 
@@ -269,16 +271,19 @@ if __name__ == "__main__":
     # CONTEO
     
     # Intenta usar la imagen por defecto del script, sino hace fallback
-    test_img = "./test_images/GeminiConteo5.jpg"
-    if not os.path.exists(test_img):
-        test_img = MULTI_PLANT
+    rows = 6
+    columns = 4
+    
+    lista_4_6 = ["GeminiConteo3.jpg", "GeminiConteo4.jpg", "GeminiConteo5.jpg"]
 
-    if os.path.exists(test_img):
-        print(f"Analizando imagen: {test_img}")
-        try:
-            result = count_plants(image_path=test_img)
-            print(f"Resultado -> Plantas detectadas: {result}")
-        except Exception as e:
-            print(f"Error al ejecutar count_plants: {e}")
-    else:
-        print(f"Imagen para conteo ({test_img}) no encontrada. Saltando este test.")
+    for test_img in lista_4_6:
+        test_img = f"./test_images/{test_img}"
+        if os.path.exists(test_img):
+            print(f"Analizando imagen: {test_img}")
+            try: 
+                result = count_plants(test_img, rows, columns)
+                print(f"Resultado -> Plantas detectadas: {result}")
+            except Exception as e:
+                print(f"Error al ejecutar count_plants: {e}")
+        else:
+            print(f"Imagen para conteo ({test_img}) no encontrada. Saltando este test.")

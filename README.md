@@ -39,19 +39,13 @@ pip install -r requirements.txt
 
 Para probar el flujo completo con la API y la interfaz visual:
 
-#### Backend (FastAPI)
-El servidor procesa las imágenes y ejecuta los algoritmos de visión por computadora.
+#### Servicio Principal (FastAPI + Interfaz Web)
+El servidor ahora procesa las imágenes, interactúa con los sensores simulados y sirve la interfaz web (frontend) directamente usando Jinja2.
 ```bash
 uvicorn src.api.app:app --reload
 ```
-La API estará disponible en `http://localhost:8000`.
-
-#### Frontend (Streamlit)
-La interfaz permite simular telemetría de sensores y probar imágenes a la API para ver el análisis en tiempo real.
-```bash
-streamlit run frontend_test.py
-```
-La interfaz se abrirá en tu navegador en `http://localhost:8501`.
+- La **API base y de análisis** estará disponible de forma nativa en `http://localhost:8000`.
+- La **Interfaz de Usuario (Frontend)** se puede abrir en tu navegador ingresando a `http://localhost:8000/ui`.
 
 ### 📸 Pipeline de Visión y Mapas Diagnósticos
 

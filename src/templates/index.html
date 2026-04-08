@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="tabs">
+    <!-- Vision Lab Tab -->
+    <!-- The checked attribute keeps the tab open based on the context returned by FastAPI -->
+    <input type="radio" name="tabs" id="tab1" {% if active_tab !='sensors' %}checked{% endif %}>
+    <label for="tab1">📸 Vision Lab</label>
+    <div class="tab">
+        <h2 class="section-title">Computer Vision Analysis Demo</h2>
+
+        <div class="grid grid-2">
+            <!-- Upload Panel -->
+            <div class="glass-panel">
+                <h3 style="margin-bottom: 1rem;">Upload Image</h3>
+                <form action="/ui/analyze" method="post" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label>Select Image File:</label>
+                        <input type="file" name="file" accept="image/jpeg, image/png, image/jpg" required>
+                    </div>
+                    <div class="grid grid-3">
+                        <div class="form-group">
+                            <label>Plant ID:</label>
+                            <input type="text" name="plant_id" value="test_plant_01">
+                        </div>
+                        <div class="form-group">
+                            <label>Tray Rows:</label>
+                            <input type="number" name="rows" value="6" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label>Tray Cols:</label>
+                            <input type="number" name="cols" value="4" min="1">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn">Analyze Image</button>
+                    {% if vision_error %}
+                    <div class="alert-card" style="margin-top: 1rem;">
+                        {{ vision_error }}
+                    </div>
+                    {% endif %}
+                </form>
+            </div>
+
+            <!-- Results Panel -->
+            <div class="glass-panel" id="vision-results">
+                <h3 style="margin-bottom: 1rem;">Results Preview</h3>
+                {% if vision_data %}
+                {% if uploaded_filename %}
+                <div style="text-align: center; margin-bottom: 1.5rem;">
+                    <img src="/static/uploads/{{ uploaded_filename }}" alt="Uploaded Image"
+                        style="max-height: 250px; object-fit: contain;">
+                </div>
+                {% endif %}
+
+                <div class="grid grid-3">
+                    <div class="metric-card">
+                        <div class="metric-label">Canopy</div>
+                        <div class="metric-value">{{ "%.2f"|format(vision_data.vision.living_coverage_pct) }}%</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Plants</div>
+                        <div class="metric-value">{{ vision_data.vision.plant_count }}</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Status</div>
+                        {% if vision_data.requires_farmer_review %}
+                        <div class="status-badge status-danger">Review ⚠️</div>
+                        {% else %}
+                        <div class="status-badge status-healthy">Healthy ✅</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if vision_data.requires_farmer_review %}
+                <div class="alert-card">
+                    <strong>Anomaly detected:</strong> {{ vision_data.anomaly_reason }}
+                </div>
+                {% endif %}
+                {% else %}
+                <div style="height: 100%; display: flex; align-items: center; justify-content: center;">
+                    <p style="color: var(--text-muted); text-align: center;">
+                        Upload an image to see the analysis preview.
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Sensor Lab Tab -->
+    <input type="radio" name="tabs" id="tab2" {% if active_tab=='sensors' %}checked{% endif %}>
+    <label for="tab2">📟 Sensor Lab</label>
+    <div class="tab">
+        <h2 class="section-title">Sensor Telemetry Simulation</h2>
+        <p style="color: var(--text-muted); margin-bottom: 2rem;">Generating a 10-day history window of fictional sensor
+            data.</p>
+
+        <div class="grid grid-2">
+            <div class="glass-panel">
+                <h3 style="margin-bottom: 1rem;">Simulate Data</h3>
+                {% if sensor_success %}
+                <div class="success-card">
+                    {{ sensor_success_msg }}
+                </div>
+                {% endif %}
+
+                <form action="/ui/sensor" method="post">
+                    <div class="form-group">
+                        <label>Target Plant ID:</label>
+                        <input type="text" name="plant_id" value="{{ plant_id|default('test_plant_01') }}" required>
+                    </div>
+                    <button type="submit" class="btn">💾 Generate & Save 10-Day History</button>
+                    {% if sensor_error %}
+                    <div class="alert-card" style="margin-top: 1rem;">
+                        {{ sensor_error }}
+                    </div>
+                    {% endif %}
+                </form>
+            </div>
+
+            <div class="glass-panel">
+                <h3 style="margin-bottom: 1rem;">Recent Database Entries</h3>
+                {% if recent_readings %}
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--glass-border); color: var(--text-muted);">
+                                <th style="padding: 0.75rem 0.5rem;">Date</th>
+                                <th style="padding: 0.75rem 0.5rem;">Soil Moist.</th>
+                                <th style="padding: 0.75rem 0.5rem;">Air Temp</th>
+                                <th style="padding: 0.75rem 0.5rem;">Canopy</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in recent_readings %}
+                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;">
+                                <!-- Extracting substring for simpler date visualization -->
+                                <td style="padding: 0.75rem 0.5rem;">{{ r.timestamp[:10] }}</td>
+                                <td style="padding: 0.75rem 0.5rem;">{{ "%.1f"|format(r.soil_moisture_pct) }}%</td>
+                                <td style="padding: 0.75rem 0.5rem;">{{ "%.1f"|format(r.temperature_c) }}°C</td>
+                                <td style="padding: 0.75rem 0.5rem;">{{ "%.1f"|format(r.living_coverage_pct) }}%</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p style="color: var(--text-muted);">No records found. Generate data to see recent entries.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

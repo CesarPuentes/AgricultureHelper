@@ -129,3 +129,4 @@ xsdata==26.2
 xxhash==3.6.0
 zict==3.0.0
 zstandard==0.25.0
+python-multipart==0.0.9
