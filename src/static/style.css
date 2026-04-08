@@ -311,3 +311,8 @@ img {
     border-radius: 8px;
     margin-bottom: 1.5rem;
 }
+
+.demo-pair { margin-bottom: 2rem; }
+.demo-images { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.demo-images img { max-height: 300px; width: 100%; object-fit: contain; }
+.demo-label { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; }

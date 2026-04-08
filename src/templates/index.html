@@ -2,88 +2,117 @@
 
 {% block content %}
 <div class="tabs">
-    <!-- Vision Lab Tab -->
-    <!-- The checked attribute keeps the tab open based on the context returned by FastAPI -->
     <input type="radio" name="tabs" id="tab1" {% if active_tab !='sensors' %}checked{% endif %}>
     <label for="tab1">📸 Vision Lab</label>
     <div class="tab">
-        <h2 class="section-title">Computer Vision Analysis Demo</h2>
-
+        <h2 class="section-title">Computer Vision Analysis</h2>
         <div class="grid grid-2">
             <!-- Upload Panel -->
             <div class="glass-panel">
-                <h3 style="margin-bottom: 1rem;">Upload Image</h3>
+                <h3 style="margin-bottom: 1rem;">📤 Upload & Analyze</h3>
                 <form action="/ui/analyze" method="post" enctype="multipart/form-data">
                     <div class="form-group">
-                        <label>Select Image File:</label>
-                        <input type="file" name="file" accept="image/jpeg, image/png, image/jpg" required>
+                        <label>Analysis Type:</label>
+                        <select name="analysis_type" id="analysis-type"
+                            onchange="document.getElementById('grid-opts').style.display=this.value==='counting'?'grid':'none'">
+                            <option value="counting">🌱 Plant Counting</option>
+                            <option value="canopy">🍃 Living Canopy</option>
+                            <option value="disease">🦠 Disease Detection</option>
+                        </select>
                     </div>
-                    <div class="grid grid-3">
-                        <div class="form-group">
-                            <label>Plant ID:</label>
-                            <input type="text" name="plant_id" value="test_plant_01">
-                        </div>
-                        <div class="form-group">
-                            <label>Tray Rows:</label>
-                            <input type="number" name="rows" value="6" min="1">
-                        </div>
-                        <div class="form-group">
-                            <label>Tray Cols:</label>
-                            <input type="number" name="cols" value="4" min="1">
-                        </div>
+                    <div class="form-group">
+                        <label>Image:</label>
+                        <input type="file" name="file" accept="image/*" required>
                     </div>
-                    <button type="submit" class="btn">Analyze Image</button>
-                    {% if vision_error %}
-                    <div class="alert-card" style="margin-top: 1rem;">
-                        {{ vision_error }}
+                    <div id="grid-opts" class="grid grid-2">
+                        <div class="form-group"><label>Rows:</label><input type="number" name="rows" value="6" min="1"></div>
+                        <div class="form-group"><label>Cols:</label><input type="number" name="cols" value="4" min="1"></div>
                     </div>
-                    {% endif %}
+                    <input type="hidden" name="plant_id" value="upload_analysis">
+                    <button type="submit" class="btn">🔬 Analyze</button>
                 </form>
             </div>
 
-            <!-- Results Panel -->
-            <div class="glass-panel" id="vision-results">
-                <h3 style="margin-bottom: 1rem;">Results Preview</h3>
-                {% if vision_data %}
-                {% if uploaded_filename %}
-                <div style="text-align: center; margin-bottom: 1.5rem;">
-                    <img src="/static/uploads/{{ uploaded_filename }}" alt="Uploaded Image"
-                        style="max-height: 250px; object-fit: contain;">
-                </div>
-                {% endif %}
+            <!-- Demo Panel -->
+            <div class="glass-panel">
+                <h3 style="margin-bottom: 1rem;">🧪 Pre-configured Demos</h3>
+                <form action="/ui/demo" method="post">
+                    <div class="form-group">
+                        <label>Demo Type:</label>
+                        <select name="demo_type" id="demo-type" onchange="updateSets()">
+                            <option value="counting">🌱 Plant Counting</option>
+                            <option value="canopy">🍃 Canopy Analysis</option>
+                            <option value="disease">🦠 Disease Detection</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Image Set:</label>
+                        <select name="image_set" id="demo-set"></select>
+                    </div>
+                    <button type="submit" class="btn">▶ Run Demo</button>
+                </form>
+            </div>
+        </div>
 
-                <div class="grid grid-3">
+        {% if vision_error %}
+        <div class="alert-card">{{ vision_error }}</div>
+        {% endif %}
+
+        {% if results %}
+        <div class="glass-panel" style="margin-top: 0;">
+            <h3 style="margin-bottom: 1.5rem;">{{ result_title|default('Results') }}</h3>
+            {% for r in results %}
+            <div class="demo-pair">
+                {% if r.map_url %}
+                <div class="demo-images">
+                    <div><p class="demo-label">Original</p><img src="{{ r.original_url }}" alt="Original"></div>
+                    <div><p class="demo-label">Diagnostic Map</p><img src="{{ r.map_url }}" alt="Map"></div>
+                </div>
+                <div class="grid grid-3" style="margin-top: 1rem;">
                     <div class="metric-card">
                         <div class="metric-label">Canopy</div>
-                        <div class="metric-value">{{ "%.2f"|format(vision_data.vision.living_coverage_pct) }}%</div>
+                        <div class="metric-value">{{ "%.2f"|format(r.coverage_pct) }}%</div>
                     </div>
+                    {% if r.plant_count is not none %}
                     <div class="metric-card">
                         <div class="metric-label">Plants</div>
-                        <div class="metric-value">{{ vision_data.vision.plant_count }}</div>
+                        <div class="metric-value">{{ r.plant_count }}</div>
                     </div>
-                    <div class="metric-card">
-                        <div class="metric-label">Status</div>
-                        {% if vision_data.requires_farmer_review %}
-                        <div class="status-badge status-danger">Review ⚠️</div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="demo-images">
+                    <div><p class="demo-label">Input Image</p><img src="{{ r.original_url }}" alt="Original"></div>
+                    <div>
+                        <p class="demo-label">Disease Predictions</p>
+                        {% if r.predictions %}
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid var(--glass-border); color: var(--text-muted);">
+                                    <th style="padding: 0.75rem 0.5rem; text-align: left;">Disease / Class</th>
+                                    <th style="padding: 0.75rem 0.5rem; text-align: right;">Confidence</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in r.predictions %}
+                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                    <td style="padding: 0.75rem 0.5rem;">{{ p.label|replace('_', ' ') }}</td>
+                                    <td style="padding: 0.75rem 0.5rem; text-align: right; font-weight: 600;">{{ "%.1f"|format(p.score * 100) }}%</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                         {% else %}
-                        <div class="status-badge status-healthy">Healthy ✅</div>
+                        <p style="color: var(--text-muted);">Classifier not available. Install: pip install transformers torch torchvision</p>
                         {% endif %}
                     </div>
                 </div>
-                {% if vision_data.requires_farmer_review %}
-                <div class="alert-card">
-                    <strong>Anomaly detected:</strong> {{ vision_data.anomaly_reason }}
-                </div>
-                {% endif %}
-                {% else %}
-                <div style="height: 100%; display: flex; align-items: center; justify-content: center;">
-                    <p style="color: var(--text-muted); text-align: center;">
-                        Upload an image to see the analysis preview.
-                    </p>
-                </div>
                 {% endif %}
             </div>
+            {% if not loop.last %}<hr style="border-color: var(--glass-border); margin: 2rem 0;">{% endif %}
+            {% endfor %}
         </div>
+        {% endif %}
     </div>
 
     <!-- Sensor Lab Tab -->
@@ -91,18 +120,13 @@
     <label for="tab2">📟 Sensor Lab</label>
     <div class="tab">
         <h2 class="section-title">Sensor Telemetry Simulation</h2>
-        <p style="color: var(--text-muted); margin-bottom: 2rem;">Generating a 10-day history window of fictional sensor
-            data.</p>
-
+        <p style="color: var(--text-muted); margin-bottom: 2rem;">Generating a 10-day history window of fictional sensor data.</p>
         <div class="grid grid-2">
             <div class="glass-panel">
                 <h3 style="margin-bottom: 1rem;">Simulate Data</h3>
                 {% if sensor_success %}
-                <div class="success-card">
-                    {{ sensor_success_msg }}
-                </div>
+                <div class="success-card">{{ sensor_success_msg }}</div>
                 {% endif %}
-
                 <form action="/ui/sensor" method="post">
                     <div class="form-group">
                         <label>Target Plant ID:</label>
@@ -110,13 +134,10 @@
                     </div>
                     <button type="submit" class="btn">💾 Generate & Save 10-Day History</button>
                     {% if sensor_error %}
-                    <div class="alert-card" style="margin-top: 1rem;">
-                        {{ sensor_error }}
-                    </div>
+                    <div class="alert-card" style="margin-top: 1rem;">{{ sensor_error }}</div>
                     {% endif %}
                 </form>
             </div>
-
             <div class="glass-panel">
                 <h3 style="margin-bottom: 1rem;">Recent Database Entries</h3>
                 {% if recent_readings %}
@@ -132,8 +153,7 @@
                         </thead>
                         <tbody>
                             {% for r in recent_readings %}
-                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;">
-                                <!-- Extracting substring for simpler date visualization -->
+                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
                                 <td style="padding: 0.75rem 0.5rem;">{{ r.timestamp[:10] }}</td>
                                 <td style="padding: 0.75rem 0.5rem;">{{ "%.1f"|format(r.soil_moisture_pct) }}%</td>
                                 <td style="padding: 0.75rem 0.5rem;">{{ "%.1f"|format(r.temperature_c) }}°C</td>
@@ -150,4 +170,10 @@
         </div>
     </div>
 </div>
+
+<script>
+const S={counting:[["conteo_4x6","Conteo (4×6)"]],canopy:[["chlorosis","Chlorosis"],["healthy","Healthy"]],disease:[["disease_1","Disease Sample"]]};
+function updateSets(){const s=document.getElementById('demo-set');s.innerHTML=S[document.getElementById('demo-type').value].map(x=>`<option value="${x[0]}">${x[1]}</option>`).join('')}
+updateSets();
+</script>
 {% endblock %}

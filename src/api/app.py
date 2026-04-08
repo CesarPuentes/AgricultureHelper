@@ -16,6 +16,7 @@ from src.core import disease_classifier
 from src.database.manager import init_db, save_readings, get_recent_readings
 
 os.makedirs("src/static/uploads", exist_ok=True)
+os.makedirs("diagnostic_maps_demo", exist_ok=True)
 init_db()
 
 app = FastAPI(
@@ -24,8 +25,19 @@ app = FastAPI(
     version="0.3.0"
 )
 
+app.mount("/static/test_images", StaticFiles(directory="test_images"), name="test_images")
+app.mount("/static/maps", StaticFiles(directory="diagnostic_maps_demo"), name="maps")
 app.mount("/static", StaticFiles(directory="src/static"), name="static")
 templates = Jinja2Templates(directory="src/templates")
+
+DEMO_SETS = {
+    "counting": {"conteo_4x6": ["GeminiConteo3.jpg", "GeminiConteo4.jpg", "GeminiConteo5.jpg"]},
+    "canopy": {
+        "chlorosis": ["Gemini_clorosis.png", "Gemini_clorosis2.png", "Gemini_clorosis3.png"],
+        "healthy": ["Gemini_sana1.png", "Gemini_sana2.png", "Gemini_sana3.png"],
+    },
+    "disease": {"disease_1": ["Gemini_plant_disease1.png"]},
+}
 
 
 class AnalyzeRequest(BaseModel):
@@ -157,54 +169,59 @@ async def dashboard_ui(request: Request):
 
 @app.post("/ui/analyze", response_class=HTMLResponse)
 async def ui_analyze_image(
-    request: Request,
-    file: UploadFile = File(...),
-    plant_id: str = Form("test_plant_01"),
-    rows: int = Form(6),
-    cols: int = Form(4)
-):
-    """Handle image upload and vision analysis from the UI."""
+    request: Request, file: UploadFile = File(...),
+    analysis_type: str = Form("counting"), plant_id: str = Form("test_plant_01"),
+    rows: int = Form(6), cols: int = Form(4)):
     if not file.filename:
         return templates.TemplateResponse("index.html", {
-            "request": request, 
-            "active_tab": "vision",
-            "vision_error": "No file selected."
-        })
-    
+            "request": request, "active_tab": "vision", "vision_error": "No file selected."})
     upload_path = os.path.join("src", "static", "uploads", file.filename)
     with open(upload_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
-        
     try:
-        coverage = calculate_living_canopy(upload_path)
-        if coverage is None:
-            raise ValueError("Vision extraction failed.")
-            
-        plant_count = count_plants(upload_path, rows=rows, cols=cols)
-        vision_data = VisionData(living_coverage_pct=coverage, plant_count=plant_count)
-        
-        needs_review = coverage < 5.0
-        reason = "Living canopy coverage critically low (< 5%). Potential necrosis or missing plant." if needs_review else None
-        
-        health_state = PlantHealthState(
-            plant_id=plant_id,
-            vision=vision_data,
-            requires_farmer_review=needs_review,
-            anomaly_reason=reason
-        )
-        
+        r = {"original_url": f"/static/uploads/{file.filename}",
+             "map_url": None, "coverage_pct": None, "plant_count": None, "predictions": None}
+        if analysis_type == "disease":
+            if disease_classifier.is_available():
+                r["predictions"] = disease_classifier.classify_disease(upload_path)
+        else:
+            map_info = generate_diagnostic_map(upload_path, plant_id=plant_id, output_dir="diagnostic_maps_demo")
+            r["map_url"] = f"/static/maps/{os.path.basename(map_info['map_path'])}"
+            r["coverage_pct"] = map_info["coverage_pct"]
+            if analysis_type == "counting":
+                r["plant_count"] = count_plants(upload_path, rows=rows, cols=cols)
         return templates.TemplateResponse("index.html", {
-            "request": request,
-            "active_tab": "vision",
-            "vision_data": health_state,
-            "uploaded_filename": file.filename
-        })
+            "request": request, "active_tab": "vision",
+            "results": [r], "result_title": f"Upload: {analysis_type.replace('_', ' ').title()}"})
     except Exception as e:
         return templates.TemplateResponse("index.html", {
-            "request": request,
-            "active_tab": "vision",
-            "vision_error": f"Analysis failed: {str(e)}"
-        })
+            "request": request, "active_tab": "vision", "vision_error": f"Analysis failed: {str(e)}"})
+
+
+@app.post("/ui/demo", response_class=HTMLResponse)
+async def ui_run_demo(request: Request, demo_type: str = Form(...), image_set: str = Form(...)):
+    images = DEMO_SETS.get(demo_type, {}).get(image_set)
+    if not images:
+        return templates.TemplateResponse("index.html", {
+            "request": request, "active_tab": "vision", "vision_error": "Invalid demo."})
+    results = []
+    for name in images:
+        path = os.path.join("test_images", name)
+        r = {"original_url": f"/static/test_images/{name}",
+             "map_url": None, "coverage_pct": None, "plant_count": None, "predictions": None}
+        if demo_type == "disease":
+            if disease_classifier.is_available():
+                r["predictions"] = disease_classifier.classify_disease(path)
+        else:
+            map_info = generate_diagnostic_map(path, plant_id=f"demo_{os.path.splitext(name)[0]}", output_dir="diagnostic_maps_demo")
+            r["map_url"] = f"/static/maps/{os.path.basename(map_info['map_path'])}"
+            r["coverage_pct"] = map_info["coverage_pct"]
+            if demo_type == "counting":
+                r["plant_count"] = count_plants(path, rows=6, cols=4)
+        results.append(r)
+    return templates.TemplateResponse("index.html", {
+        "request": request, "active_tab": "vision",
+        "results": results, "result_title": f"Demo: {demo_type.title()} — {image_set.replace('_', ' ').title()}"})
 
 @app.post("/ui/sensor", response_class=HTMLResponse)
 async def ui_sensor_simulation(request: Request, plant_id: str = Form(...)):
