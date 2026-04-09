@@ -8,7 +8,7 @@ This directory contains the primary "brain" of the AgenteAgricultura system. It 
 *The Deterministic Anomaly Engine.*
 This package focus on detecting physiological shifts without necessarily naming the pathogen. It is designed to be explainable and lightweight.
 - **`engine.py`**: The high-level coordinator that runs all detectors and calculates the composite anomaly score.
-- **`detectors.py`**: Individual computer vision algorithms for Chlorosis (Active), and archived logic for Texture and Holes.
+- **`detectors.py`**: Individual computer vision algorithms for Chlorosis (Active).
 - **`utils.py`**: Low-level image processing utilities (masking, labeling, and debug output).
 
 ### 📂 `disease/`

@@ -6,25 +6,23 @@
         %}>
     <label for="tab1">📸 Vision Lab</label>
     <div class="tab">
-        {% include 'includes/vision_tab.html' %}
-        {% include 'includes/vision_results.html' %}
+        {% include 'includes/vision_tab.j2' %}
+        {% include 'includes/vision_results.j2' %}
     </div>
 
     <!-- Sensor Lab Tab -->
     <input type="radio" name="tabs" id="tab2" {% if active_tab=='sensors' %}checked{% endif %}>
     <label for="tab2">📟 Sensor Lab</label>
     <div class="tab">
-        {% include 'includes/sensor_tab.html' %}
+        {% include 'includes/sensor_tab.j2' %}
     </div>
 
     <!-- Alerts Lab Tab -->
     <input type="radio" name="tabs" id="tab3" {% if active_tab=='alerts' %}checked{% endif %}>
     <label for="tab3">🚨 Alerts Lab</label>
     <div class="tab">
-        {% include 'includes/alerts_tab.html' %}
+        {% include 'includes/alerts_tab.j2' %}
     </div>
-</div>
-
 </div>
 
 <script>

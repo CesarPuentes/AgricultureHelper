@@ -1,7 +1,8 @@
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
+import uuid
 from pydantic import BaseModel, Field
 from typing import Optional
 import os
@@ -33,6 +34,9 @@ app.mount("/static/test_images", StaticFiles(directory="test_images"), name="tes
 app.mount("/static/maps", StaticFiles(directory="diagnostic_maps_demo"), name="maps")
 app.mount("/static", StaticFiles(directory="src/static"), name="static")
 templates = Jinja2Templates(directory="src/templates")
+
+# Simple in-memory results cache for PRG pattern
+_UI_RESULTS_CACHE = {}
 
 DEMO_SETS = {
     "counting": {"conteo_4x6": ["GeminiConteo3.jpg", "GeminiConteo4.jpg", "GeminiConteo5.jpg"]},
@@ -168,9 +172,19 @@ async def classify_disease(request: ClassifyDiseaseRequest):
 # UI Routes (Jinja2 Templates)
 # ---------------------------------------------------------------------------
 @app.get("/ui", response_class=HTMLResponse)
-async def dashboard_ui(request: Request):
-    """Render the main dashboard UI."""
-    return templates.TemplateResponse("index.html", {"request": request, "active_tab": "vision"})
+async def dashboard_ui(request: Request, results_id: Optional[str] = None, active_tab: str = "vision"):
+    """Render the main dashboard UI, optionally with cached results."""
+    # Pull results from cache if present (matches PRG pattern)
+    cached_data = _UI_RESULTS_CACHE.pop(results_id, {}) if results_id else {}
+    
+    ctx = {
+        "request": request, 
+        "active_tab": cached_data.get("active_tab", active_tab)
+    }
+    # Merge additional context from cache (results, errors, etc.)
+    ctx.update(cached_data.get("data", {}))
+    
+    return templates.TemplateResponse("index.html", ctx)
 
 @app.post("/ui/analyze", response_class=HTMLResponse)
 async def ui_analyze_image(
@@ -178,8 +192,12 @@ async def ui_analyze_image(
     analysis_type: str = Form("counting"), plant_id: str = Form("test_plant_01"),
     rows: int = Form(6), cols: int = Form(4)):
     if not file.filename:
-        return templates.TemplateResponse("index.html", {
-            "request": request, "active_tab": "vision", "vision_error": "No file selected."})
+        rid = str(uuid.uuid4())
+        _UI_RESULTS_CACHE[rid] = {
+            "active_tab": "vision",
+            "data": {"vision_error": "No file selected."}
+        }
+        return RedirectResponse(url=f"/ui?results_id={rid}", status_code=303)
     upload_path = os.path.join("src", "static", "uploads", file.filename)
     with open(upload_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
@@ -193,7 +211,7 @@ async def ui_analyze_image(
         elif analysis_type == "anomaly":
             anomaly = calculate_anomaly_score(upload_path, output_dir="diagnostic_maps_demo")
             # Rewrite debug paths to serveable URLs
-            for key in ("chlorosis", "texture", "holes"):
+            for key in ("chlorosis",):
                 if anomaly.get(key, {}).get("debug_path"):
                     anomaly[key]["debug_url"] = f"/static/maps/{os.path.basename(anomaly[key]['debug_path'])}"
             if anomaly.get("canopy_map"):
@@ -205,20 +223,34 @@ async def ui_analyze_image(
             r["coverage_pct"] = map_info["coverage_pct"]
             if analysis_type == "counting":
                 r["plant_count"] = count_plants(upload_path, rows=rows, cols=cols)
-        return templates.TemplateResponse("index.html", {
-            "request": request, "active_tab": "vision",
-            "results": [r], "result_title": f"Upload: {analysis_type.replace('_', ' ').title()}"})
+        rid = str(uuid.uuid4())
+        _UI_RESULTS_CACHE[rid] = {
+            "active_tab": "vision",
+            "data": {
+                "results": [r] if "r" in locals() and r.get("original_url") else [],
+                "result_title": f"Upload: {analysis_type.replace('_', ' ').title()}"
+            }
+        }
+        return RedirectResponse(url=f"/ui?results_id={rid}", status_code=303)
     except Exception as e:
-        return templates.TemplateResponse("index.html", {
-            "request": request, "active_tab": "vision", "vision_error": f"Analysis failed: {str(e)}"})
+        rid = str(uuid.uuid4())
+        _UI_RESULTS_CACHE[rid] = {
+            "active_tab": "vision",
+            "data": {"vision_error": f"Analysis failed: {str(e)}"}
+        }
+        return RedirectResponse(url=f"/ui?results_id={rid}", status_code=303)
 
 
 @app.post("/ui/demo", response_class=HTMLResponse)
 async def ui_run_demo(request: Request, demo_type: str = Form(...), image_set: str = Form(...)):
     images = DEMO_SETS.get(demo_type, {}).get(image_set)
     if not images:
-        return templates.TemplateResponse("index.html", {
-            "request": request, "active_tab": "vision", "vision_error": "Invalid demo."})
+        rid = str(uuid.uuid4())
+        _UI_RESULTS_CACHE[rid] = {
+            "active_tab": "vision",
+            "data": {"vision_error": "Invalid demo."}
+        }
+        return RedirectResponse(url=f"/ui?results_id={rid}", status_code=303)
     results = []
     for name in images:
         path = os.path.join("test_images", name)
@@ -230,7 +262,7 @@ async def ui_run_demo(request: Request, demo_type: str = Form(...), image_set: s
                 r["predictions"] = disease_classifier.classify_disease(path)
         elif demo_type == "anomaly":
             anomaly = calculate_anomaly_score(path, output_dir="diagnostic_maps_demo")
-            for key in ("chlorosis", "texture", "holes"):
+            for key in ("chlorosis",):
                 if anomaly.get(key, {}).get("debug_path"):
                     anomaly[key]["debug_url"] = f"/static/maps/{os.path.basename(anomaly[key]['debug_path'])}"
             if anomaly.get("canopy_map"):
@@ -243,9 +275,16 @@ async def ui_run_demo(request: Request, demo_type: str = Form(...), image_set: s
             if demo_type == "counting":
                 r["plant_count"] = count_plants(path, rows=6, cols=4)
         results.append(r)
-    return templates.TemplateResponse("index.html", {
-        "request": request, "active_tab": "vision",
-        "results": results, "result_title": f"Demo: {demo_type.title()} — {image_set.replace('_', ' ').title()}"})
+            
+    rid = str(uuid.uuid4())
+    _UI_RESULTS_CACHE[rid] = {
+        "active_tab": "vision",
+        "data": {
+            "results": results, 
+            "result_title": f"Demo: {demo_type.title()} — {image_set.replace('_', ' ').title()}"
+        }
+    }
+    return RedirectResponse(url=f"/ui?results_id={rid}", status_code=303)
 
 @app.post("/ui/sensor", response_class=HTMLResponse)
 async def ui_sensor_simulation(request: Request, plant_id: str = Form(...)):
@@ -279,33 +318,40 @@ async def ui_sensor_simulation(request: Request, plant_id: str = Form(...)):
         save_readings(readings_to_save)
         recent = get_recent_readings(plant_id)
         
-        return templates.TemplateResponse("index.html", {
-            "request": request,
+        rid = str(uuid.uuid4())
+        _UI_RESULTS_CACHE[rid] = {
             "active_tab": "sensors",
-            "sensor_success": True,
-            "sensor_success_msg": f"Successfully saved {n} records to 'agriculture.db' for plant '{plant_id}'!",
-            "recent_readings": recent,
-            "plant_id": plant_id
-        })
+            "data": {
+                "sensor_success": True,
+                "sensor_success_msg": f"Successfully saved {n} records to 'agriculture.db' for plant '{plant_id}'!",
+                "recent_readings": recent,
+                "plant_id": plant_id
+            }
+        }
+        return RedirectResponse(url=f"/ui?results_id={rid}", status_code=303)
     except Exception as e:
-        return templates.TemplateResponse("index.html", {
-            "request": request,
+        rid = str(uuid.uuid4())
+        _UI_RESULTS_CACHE[rid] = {
             "active_tab": "sensors",
-            "sensor_error": f"Database error: {str(e)}"
-        })
+            "data": {"sensor_error": f"Database error: {str(e)}"}
+        }
+        return RedirectResponse(url=f"/ui?results_id={rid}", status_code=303)
 
 
 @app.post("/ui/alerts", response_class=HTMLResponse)
 async def ui_run_alerts(request: Request, plant_id: str = Form(...)):
     """Run all deterministic alert checks for a plant/sensor ID."""
     alerts = run_all_checks(plant_id)
-    return templates.TemplateResponse("index.html", {
-        "request": request,
+    rid = str(uuid.uuid4())
+    _UI_RESULTS_CACHE[rid] = {
         "active_tab": "alerts",
-        "alert_plant_id": plant_id,
-        "alert_results": [a.model_dump() for a in alerts],
-        "alert_count": len(alerts),
-    })
+        "data": {
+            "alert_plant_id": plant_id,
+            "alert_results": [a.model_dump() for a in alerts],
+            "alert_count": len(alerts),
+        }
+    }
+    return RedirectResponse(url=f"/ui?results_id={rid}", status_code=303)
 
 
 if __name__ == "__main__":
