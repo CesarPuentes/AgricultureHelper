@@ -152,7 +152,7 @@ def generate_diagnostic_map(
 # ---------------------------------------------------------------------------
 # Funciones públicas
 # ---------------------------------------------------------------------------
-def calculate_living_canopy(image_path, save_map: bool = False, plant_id: str = "unknown"):
+def calculate_living_canopy(image_path, save_map: bool = False, plant_id: str = "unknown", output_dir: str | None = None):
     """
     Calculate the percentage of the image covered by living green tissue.
 
@@ -160,6 +160,7 @@ def calculate_living_canopy(image_path, save_map: bool = False, plant_id: str = 
         image_path: Path to the plant image.
         save_map: If True, also generates a diagnostic map PNG.
         plant_id: Plant identifier (used in map filename).
+        output_dir: Directory where the diagnostic map will be saved.
 
     Returns:
         float: coverage percentage, or None on error.
@@ -172,7 +173,7 @@ def calculate_living_canopy(image_path, save_map: bool = False, plant_id: str = 
         coverage = round((living_pixels / total_pixels) * 100, 2)
 
         if save_map:
-            map_info = generate_diagnostic_map(image_path, plant_id=plant_id)
+            map_info = generate_diagnostic_map(image_path, plant_id=plant_id, output_dir=output_dir)
             return coverage, map_info
 
         return coverage

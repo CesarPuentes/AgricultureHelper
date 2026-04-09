@@ -16,6 +16,8 @@ import cv2
 import numpy as np
 from plantcv import plantcv as pcv
 
+from src.core.vision_extractor import calculate_living_canopy
+
 pcv.params.debug = "None"
 
 # ---------------------------------------------------------------------------
@@ -79,24 +81,38 @@ def chlorosis_score(image_path: str, output_dir: str = "diagnostic_maps_demo") -
 
 def texture_score(image_path: str, output_dir: str = "diagnostic_maps_demo") -> dict:
     img, mask = _plant_mask(image_path)
-    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    
+    # 1. Variance-based Texture (Expert Method for Mildew/Fuzz)
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    # Lowered threshold (28) to detect subtle mildew texture
+    stdev = pcv.stdev_filter(img=gray, ksize=11)
+    _, texture_thresh = cv2.threshold(stdev, 28, 255, cv2.THRESH_BINARY)
+    texture_spots = cv2.bitwise_and(texture_thresh, mask)
 
-    # Spots that are ON the plant but NOT green and NOT yellow (already counted in chlorosis)
-    # This catches: white mildew, dark necrotic lesions, grey mold
-    white_spots = cv2.bitwise_and(cv2.inRange(hsv, (0, 0, 160), (180, 50, 255)), mask)
+    # 2. Color-based Anomaly (Specific Lesions / Mildew Patches)
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    # White/Pale spots (Mildew): Saturation up to 115, Value floor 140
+    pale_spots = cv2.bitwise_and(cv2.inRange(hsv, (0, 0, 140), (180, 115, 255)), mask)
+    # Dark necrotic lesions
     dark_spots = cv2.bitwise_and(cv2.inRange(hsv, (0, 0, 0), (180, 255, 60)), mask)
-    anomaly = cv2.bitwise_or(white_spots, dark_spots)
+    
+    # Combine and Clean (Removes edge noise/shadows)
+    raw_anomaly = cv2.bitwise_or(texture_spots, cv2.bitwise_or(pale_spots, dark_spots))
+    anomaly = pcv.fill(bin_img=raw_anomaly, size=15)
 
     plant_px = cv2.countNonZero(mask)
     anomaly_px = cv2.countNonZero(anomaly)
     pct = (anomaly_px / plant_px * 100) if plant_px > 0 else 0
-    score = min(round(pct * 5), 100)  # 20% anomalous → score 100
+    
+    # Scaling: 20% anomalous area is a high score (80)
+    score = min(round(pct * 4), 100)
 
     # Debug: heatmap of anomalous spots
     debug = (img * 0.3).astype(np.uint8)
     debug[mask > 0] = (img * 0.6).astype(np.uint8)[mask > 0]
-    debug[white_spots > 0] = (255, 255, 0)   # Cyan = white mildew
-    debug[dark_spots > 0] = (0, 0, 255)       # Red = dark lesions
+    debug[texture_spots > 0] = (255, 255, 0)   # Cyan = High variance
+    debug[pale_spots > 0] = (255, 255, 255)    # White = Pale/White patches
+    debug[dark_spots > 0] = (0, 0, 255)       # Red = Dark lesions
     _label(debug, 10, 30, f"Texture Score: {score}/100 | Anomaly: {anomaly_px}px ({pct:.1f}%)", (0, 0, 0))
     path = _save_debug(debug, "texture", output_dir)
 
@@ -110,16 +126,43 @@ def texture_score(image_path: str, output_dir: str = "diagnostic_maps_demo") -> 
 def hole_score(image_path: str, output_dir: str = "diagnostic_maps_demo") -> dict:
     img, mask = _plant_mask(image_path)
 
-    # Close small gaps → solid shape, then XOR to find internal holes
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
-    closed = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-    holes = cv2.bitwise_and(cv2.bitwise_not(mask), closed)
+    # 1. Define ROI Grid (Standard 6x4 tray)
+    # Using pcv.roi.auto_grid to define the 24 pots
+    rois = pcv.roi.auto_grid(mask=mask, nrows=6, ncols=4)
+    
+    # 2. Isolate individual rosettes
+    # pcv.create_labels segments the global mask into 24 distinct clusters based on these ROIs.
+    # This is crucial: Gaps BETWEEN rosettes will now be outside the cluster boundaries
+    # and won't be filled by the topological algorithm.
+    labeled_mask, _ = pcv.create_labels(mask=mask, rois=rois, roi_type="partial")
+    
+    global_holes = np.zeros_like(mask)
+    labels = np.unique(labeled_mask)
 
-    contours, _ = cv2.findContours(holes, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    real_holes = [c for c in contours if cv2.contourArea(c) > 50]
+    # 3. Analyze each plant individually for internal holes
+    for label in labels:
+        if label == 0: continue  # Skip background
+        
+        # Create a local mask for a single pot/plant cluster
+        local_mask = np.zeros_like(mask)
+        local_mask[labeled_mask == label] = 255
+        
+        # Topological fill strictly finds internal holes within THIS plant's geometry
+        filled = pcv.fill_holes(local_mask)
+        local_holes = cv2.bitwise_and(cv2.bitwise_not(local_mask), filled)
+        
+        # Aggregate back to global holes mask
+        global_holes = cv2.bitwise_or(global_holes, local_holes)
+
+    # 4. Filter and Quantify
+    contours, _ = cv2.findContours(global_holes, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # Filtering small noise; real pest damage usually targets area > 30px
+    real_holes = [c for c in contours if cv2.contourArea(c) > 30]
     hole_area = sum(cv2.contourArea(c) for c in real_holes)
+    
     plant_area = cv2.countNonZero(mask)
     pct = (hole_area / plant_area * 100) if plant_area > 0 else 0
+    # Scaling: 5% total leaf area loss is a very high score (50)
     score = min(round(pct * 10), 100)
 
     # Debug: magenta holes on dimmed image
@@ -144,15 +187,30 @@ def calculate_anomaly_score(image_path: str, output_dir: str = "diagnostic_maps_
     Returns individual scores + weighted composite (0–100).
     """
     chlor = chlorosis_score(image_path, output_dir)
-    text = texture_score(image_path, output_dir=output_dir)
-    holes = hole_score(image_path, output_dir)
+    # text = texture_score(image_path, output_dir=output_dir)
+    # holes = hole_score(image_path, output_dir)
+    
+    # Deactivated as per user request
+    text = {"score": 0, "anomaly_px": 0, "anomaly_pct": 0, "debug_path": None}
+    holes = {"score": 0, "hole_count": 0, "hole_area_pct": 0, "debug_path": None}
+    
+    canopy_res = calculate_living_canopy(image_path, save_map=True, plant_id=f"anomaly_{os.path.basename(image_path).split('.')[0]}", output_dir=output_dir)
+    if isinstance(canopy_res, tuple):
+        canopy_coverage, canopy_map_info = canopy_res
+        canopy_map_path = canopy_map_info["map_path"]
+    else:
+        canopy_coverage = canopy_res or 0.0
+        canopy_map_path = None
 
-    composite = round(chlor["score"] * 0.40 + text["score"] * 0.40 + holes["score"] * 0.20)
+    # Composite now only reflects chlorosis (weighted 100%)
+    composite = chlor["score"]
     needs_attention = composite > 40
 
     return {
         "anomaly_score": composite,
         "needs_attention": needs_attention,
+        "canopy_coverage": canopy_coverage,
+        "canopy_map": canopy_map_path,
         "chlorosis": chlor,
         "texture": text,
         "holes": holes,

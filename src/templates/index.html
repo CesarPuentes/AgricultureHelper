@@ -2,7 +2,8 @@
 
 {% block content %}
 <div class="tabs">
-    <input type="radio" name="tabs" id="tab1" {% if active_tab != 'sensors' and active_tab != 'alerts' %}checked{% endif %}>
+    <input type="radio" name="tabs" id="tab1" {% if active_tab !='sensors' and active_tab !='alerts' %}checked{% endif
+        %}>
     <label for="tab1">📸 Vision Lab</label>
     <div class="tab">
         <h2 class="section-title">Computer Vision Analysis</h2>
@@ -13,12 +14,10 @@
                 <form action="/ui/analyze" method="post" enctype="multipart/form-data">
                     <div class="form-group">
                         <label>Analysis Type:</label>
-                        <select name="analysis_type" id="analysis-type"
-                            onchange="
+                        <select name="analysis_type" id="analysis-type" onchange="
                                 document.getElementById('grid-opts').style.display=(this.value==='counting'||this.value==='disease')?'grid':'none';
                             ">
                             <option value="counting">🌱 Plant Counting</option>
-                            <option value="canopy">🍃 Living Canopy</option>
                             <option value="disease">🦠 Disease Detection</option>
                             <option value="anomaly">🔍 Anomaly Detection</option>
                         </select>
@@ -28,8 +27,10 @@
                         <input type="file" name="file" accept="image/*" required>
                     </div>
                     <div id="grid-opts" class="grid grid-2">
-                        <div class="form-group"><label>Rows:</label><input type="number" name="rows" value="6" min="1"></div>
-                        <div class="form-group"><label>Cols:</label><input type="number" name="cols" value="4" min="1"></div>
+                        <div class="form-group"><label>Rows:</label><input type="number" name="rows" value="6" min="1">
+                        </div>
+                        <div class="form-group"><label>Cols:</label><input type="number" name="cols" value="4" min="1">
+                        </div>
                     </div>
                     <input type="hidden" name="plant_id" value="upload_analysis">
                     <button type="submit" class="btn">🔬 Analyze</button>
@@ -44,7 +45,6 @@
                         <label>Demo Type:</label>
                         <select name="demo_type" id="demo-type" onchange="updateSets()">
                             <option value="counting">🌱 Plant Counting</option>
-                            <option value="canopy">🍃 Canopy Analysis</option>
                             <option value="disease">🦠 Disease Detection</option>
                             <option value="anomaly">🔍 Anomaly Detection</option>
                         </select>
@@ -63,61 +63,84 @@
         {% endif %}
 
         {% if results %}
-        <div class="glass-panel" style="margin-top: 0;">
+        <div class="glass-panel" id="results-container" style="margin-top: 0;">
             <h3 style="margin-bottom: 1.5rem;">{{ result_title|default('Results') }}</h3>
             {% for r in results %}
             <div class="demo-pair">
                 {% if r.anomaly %}
                 {# ── Anomaly Detection Results ── #}
+                {% if loop.first %}
+                <details style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 8px;">
+                    <summary style="cursor: pointer; font-weight: 600; color: var(--text-muted);">ℹ️ Analysis Legend & Interpretation Guide</summary>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-top: 1rem; font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+                        <div>
+                            <strong style="color: #fff;">🍃 Canopy:</strong> Measures the area of living green tissue. Used to track overall crop growth and logs sudden wilting in telemetry. Higher % is better.
+                        </div>
+                        <div>
+                            <strong style="color: #fff;">🟡 Anomaly Detected (0-100):</strong> Ratio of stressed (yellow/brown) to healthy pixels. Early warning for water/nutrient stress. Higher scores mean severe discoloration.
+                        </div>
+                    </div>
+                    <p style="margin-top: 1rem; font-style: italic; font-size: 0.75rem; opacity: 0.7;">* Note: All metrics are computer vision estimations and are not 100% accurate.</p>
+                </details>
+                {% endif %}
                 <div style="margin-bottom: 1.5rem;">
                     <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
                         <img src="{{ r.original_url }}" alt="Original"
-                             style="width: 180px; height: auto; border-radius: 8px; border: 1px solid var(--glass-border);">
+                            style="width: 180px; height: auto; border-radius: 8px; border: 1px solid var(--glass-border);">
                         <div>
-                            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem;">Composite Anomaly Score</p>
-                            <span style="font-size: 2.5rem; font-weight: 700;
+                            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem;">Composite
+                                Anomaly Score</p>
+                            <span
+                                style="font-size: 2.5rem; font-weight: 700;
                                 color: {% if r.anomaly.anomaly_score > 60 %}#f87171{% elif r.anomaly.anomaly_score > 30 %}#fbbf24{% else %}#34d399{% endif %};">
                                 {{ r.anomaly.anomaly_score }}<span style="font-size: 1rem; opacity: 0.6;">/100</span>
                             </span>
                             <p style="margin-top: 0.25rem;">
                                 {% if r.anomaly.needs_attention %}
-                                    <span style="background: rgba(248,113,113,0.15); color: #f87171; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600;">⚠ Needs Attention</span>
+                                <span
+                                    style="background: rgba(248,113,113,0.15); color: #f87171; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600;">⚠
+                                    Needs Attention</span>
                                 {% else %}
-                                    <span style="background: rgba(52,211,153,0.15); color: #34d399; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600;">✓ Normal</span>
+                                <span
+                                    style="background: rgba(52,211,153,0.15); color: #34d399; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600;">✓
+                                    Normal</span>
                                 {% endif %}
                             </p>
                         </div>
                     </div>
 
                     {# Score breakdown cards #}
-                    <div class="grid grid-3" style="margin-bottom: 1rem;">
-                        <div class="metric-card" style="border-color: {% if r.anomaly.chlorosis.score > 40 %}rgba(248,113,113,0.4){% else %}rgba(52,211,153,0.3){% endif %};">
-                            <div class="metric-label">🟡 Chlorosis</div>
-                            <div class="metric-value" style="color: {% if r.anomaly.chlorosis.score > 40 %}#f87171{% else %}#34d399{% endif %};">{{ r.anomaly.chlorosis.score }}/100</div>
-                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Green: {{ r.anomaly.chlorosis.green_px }}px · Stress: {{ r.anomaly.chlorosis.stress_px }}px</div>
+                    <div
+                        style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-bottom: 1rem;">
+                        <div class="metric-card" style="border-color: rgba(52,211,153,0.3);">
+                            <div class="metric-label">🍃 Canopy</div>
+                            <div class="metric-value">{{ "%.2f"|format(r.anomaly.canopy_coverage) }}%</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Living
+                                Tissue</div>
                         </div>
-                        <div class="metric-card" style="border-color: {% if r.anomaly.texture.score > 40 %}rgba(248,113,113,0.4){% else %}rgba(52,211,153,0.3){% endif %};">
-                            <div class="metric-label">🟤 Texture</div>
-                            <div class="metric-value" style="color: {% if r.anomaly.texture.score > 40 %}#f87171{% else %}#34d399{% endif %};">{{ r.anomaly.texture.score }}/100</div>
-                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Anomaly: {{ r.anomaly.texture.anomaly_pct }}% area</div>
-                        </div>
-                        <div class="metric-card" style="border-color: {% if r.anomaly.holes.score > 40 %}rgba(248,113,113,0.4){% else %}rgba(52,211,153,0.3){% endif %};">
-                            <div class="metric-label">🕳️ Holes</div>
-                            <div class="metric-value" style="color: {% if r.anomaly.holes.score > 40 %}#f87171{% else %}#34d399{% endif %};">{{ r.anomaly.holes.score }}/100</div>
-                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">{{ r.anomaly.holes.hole_count }} holes · {{ r.anomaly.holes.hole_area_pct }}% area</div>
+                        <div class="metric-card"
+                            style="border-color: {% if r.anomaly.chlorosis.score > 40 %}rgba(248,113,113,0.4){% else %}rgba(52,211,153,0.3){% endif %};">
+                            <div class="metric-label">🟡 Anomaly Detected</div>
+                            <div class="metric-value"
+                                style="color: {% if r.anomaly.chlorosis.score > 40 %}#f87171{% else %}#34d399{% endif %};">
+                                {{ r.anomaly.chlorosis.score }}/100</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Green: {{
+                                r.anomaly.chlorosis.green_px }}px · Stress: {{ r.anomaly.chlorosis.stress_px }}px</div>
                         </div>
                     </div>
 
                     {# Debug diagnostic images #}
-                    <div class="demo-images" style="grid-template-columns: repeat(3, 1fr);">
+                    <div class="demo-images" style="grid-template-columns: repeat(2, 1fr);">
+                        {% if r.anomaly.canopy_url %}
+                        <div>
+                            <p class="demo-label">Canopy Map</p><img src="{{ r.anomaly.canopy_url }}" alt="Canopy">
+                        </div>
+                        {% endif %}
                         {% if r.anomaly.chlorosis.debug_url %}
-                        <div><p class="demo-label">Chlorosis Map</p><img src="{{ r.anomaly.chlorosis.debug_url }}" alt="Chlorosis"></div>
-                        {% endif %}
-                        {% if r.anomaly.texture.debug_url %}
-                        <div><p class="demo-label">Texture Map</p><img src="{{ r.anomaly.texture.debug_url }}" alt="Texture"></div>
-                        {% endif %}
-                        {% if r.anomaly.holes.debug_url %}
-                        <div><p class="demo-label">Hole Map</p><img src="{{ r.anomaly.holes.debug_url }}" alt="Holes"></div>
+                        <div>
+                            <p class="demo-label">Anomaly Map</p><img src="{{ r.anomaly.chlorosis.debug_url }}"
+                                alt="Anomaly Detected">
+                        </div>
                         {% endif %}
                     </div>
                 </div>
@@ -125,16 +148,29 @@
                 {% elif r.predictions %}
                 {# Disease path: original + disease map + per-plant table #}
                 <div class="demo-images">
-                    <div><p class="demo-label">Original</p><img src="{{ r.original_url }}" alt="Original"></div>
+                    <div>
+                        <p class="demo-label">Original</p><img src="{{ r.original_url }}" alt="Original">
+                    </div>
                     {% if r.map_url %}
-                    <div><p class="demo-label">Disease Map</p><img src="{{ r.map_url }}" alt="Disease Map"></div>
+                    <div>
+                        <p class="demo-label">Disease Map</p><img src="{{ r.map_url }}" alt="Disease Map">
+                    </div>
                     {% endif %}
                 </div>
                 {% if r.disease_summary %}
                 <div class="grid grid-3" style="margin-top: 1rem;">
-                    <div class="metric-card"><div class="metric-label">Total Plants</div><div class="metric-value">{{ r.disease_summary.total }}</div></div>
-                    <div class="metric-card" style="border-color: rgba(52,211,153,0.3);"><div class="metric-label">🟢 Healthy</div><div class="metric-value" style="color: #34d399;">{{ r.disease_summary.healthy }}</div></div>
-                    <div class="metric-card" style="border-color: rgba(248,113,113,0.3);"><div class="metric-label">🔴 Diseased</div><div class="metric-value" style="color: #f87171;">{{ r.disease_summary.diseased }}</div></div>
+                    <div class="metric-card">
+                        <div class="metric-label">Total Plants</div>
+                        <div class="metric-value">{{ r.disease_summary.total }}</div>
+                    </div>
+                    <div class="metric-card" style="border-color: rgba(52,211,153,0.3);">
+                        <div class="metric-label">🟢 Healthy</div>
+                        <div class="metric-value" style="color: #34d399;">{{ r.disease_summary.healthy }}</div>
+                    </div>
+                    <div class="metric-card" style="border-color: rgba(248,113,113,0.3);">
+                        <div class="metric-label">🔴 Diseased</div>
+                        <div class="metric-value" style="color: #f87171;">{{ r.disease_summary.diseased }}</div>
+                    </div>
                 </div>
                 {% endif %}
                 <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 1rem;">
@@ -151,8 +187,10 @@
                         <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
                             <td style="padding: 0.5rem;">#{{ p.roi }}</td>
                             <td style="padding: 0.5rem;">{{ p.label|replace('_', ' ') }}</td>
-                            <td style="padding: 0.5rem; text-align: right; font-weight: 600;">{{ "%.1f"|format(p.score * 100) }}%</td>
-                            <td style="padding: 0.5rem; text-align: center;">{% if p.status == 'healthy' %}🟢{% elif p.status == 'diseased' %}🔴{% else %}🟡{% endif %}</td>
+                            <td style="padding: 0.5rem; text-align: right; font-weight: 600;">{{ "%.1f"|format(p.score *
+                                100) }}%</td>
+                            <td style="padding: 0.5rem; text-align: center;">{% if p.status == 'healthy' %}🟢{% elif
+                                p.status == 'diseased' %}🔴{% else %}🟡{% endif %}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -160,8 +198,12 @@
                 {% elif r.map_url %}
                 {# Canopy/Counting path #}
                 <div class="demo-images">
-                    <div><p class="demo-label">Original</p><img src="{{ r.original_url }}" alt="Original"></div>
-                    <div><p class="demo-label">Diagnostic Map</p><img src="{{ r.map_url }}" alt="Map"></div>
+                    <div>
+                        <p class="demo-label">Original</p><img src="{{ r.original_url }}" alt="Original">
+                    </div>
+                    <div>
+                        <p class="demo-label">Diagnostic Map</p><img src="{{ r.map_url }}" alt="Map">
+                    </div>
                 </div>
                 <div class="grid grid-3" style="margin-top: 1rem;">
                     <div class="metric-card">
@@ -177,7 +219,8 @@
                 </div>
                 {% endif %}
             </div>
-            {% if not loop.last %}<hr style="border-color: var(--glass-border); margin: 2rem 0;">{% endif %}
+            {% if not loop.last %}
+            <hr style="border-color: var(--glass-border); margin: 2rem 0;">{% endif %}
             {% endfor %}
         </div>
         {% endif %}
@@ -188,7 +231,8 @@
     <label for="tab2">📟 Sensor Lab</label>
     <div class="tab">
         <h2 class="section-title">Sensor Telemetry Simulation</h2>
-        <p style="color: var(--text-muted); margin-bottom: 2rem;">Generating a 10-day history window of fictional sensor data.</p>
+        <p style="color: var(--text-muted); margin-bottom: 2rem;">Generating a 10-day history window of fictional sensor
+            data.</p>
         <div class="grid grid-2">
             <div class="glass-panel">
                 <h3 style="margin-bottom: 1rem;">Simulate Data</h3>
@@ -244,7 +288,8 @@
     <div class="tab">
         <h2 class="section-title">Deterministic Alert Engine</h2>
         <p style="color: var(--text-muted); margin-bottom: 2rem;">
-            Test the <strong>Layer 0</strong> alert checks: <em>Watchdog</em> (sensor disconnected) and <em>Vision Delta</em> (rapid canopy loss).
+            Test the <strong>Layer 0</strong> alert checks: <em>Watchdog</em> (sensor disconnected) and <em>Vision
+                Delta</em> (rapid canopy loss).
             Generate sensor data in the Sensor Lab first, then run alerts here to see the results.
         </p>
         <div class="grid grid-2">
@@ -253,55 +298,62 @@
                 <form action="/ui/alerts" method="post">
                     <div class="form-group">
                         <label>Plant / Sensor ID:</label>
-                        <input type="text" name="plant_id" value="{{ alert_plant_id|default('test_plant_01') }}" required
-                               placeholder="e.g. test_plant_01">
+                        <input type="text" name="plant_id" value="{{ alert_plant_id|default('test_plant_01') }}"
+                            required placeholder="e.g. test_plant_01">
                     </div>
                     <button type="submit" class="btn">🚨 Run All Checks</button>
                 </form>
                 <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 1rem;">
-                    Checks run: <code>check_watchdog</code> (max 130 min silence) · <code>check_vision_delta</code> (5% drop in 4h)
+                    Checks run: <code>check_watchdog</code> (max 130 min silence) · <code>check_vision_delta</code> (5%
+                    drop in 4h)
                 </p>
             </div>
 
             <div class="glass-panel">
                 <h3 style="margin-bottom: 1rem;">📋 Alert Results</h3>
                 {% if alert_results is defined and alert_results is not none %}
-                    {% if alert_count == 0 %}
-                    <div class="success-card" style="display: flex; align-items: center; gap: 0.75rem;">
-                        <span style="font-size: 1.5rem;">✅</span>
-                        <div>
-                            <strong>All Clear</strong>
-                            <p style="margin: 0; font-size: 0.85rem; opacity: 0.8;">No alerts triggered for "{{ alert_plant_id }}".</p>
-                        </div>
+                {% if alert_count == 0 %}
+                <div class="success-card" style="display: flex; align-items: center; gap: 0.75rem;">
+                    <span style="font-size: 1.5rem;">✅</span>
+                    <div>
+                        <strong>All Clear</strong>
+                        <p style="margin: 0; font-size: 0.85rem; opacity: 0.8;">No alerts triggered for "{{
+                            alert_plant_id }}".</p>
                     </div>
-                    {% else %}
-                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
-                        <span style="font-size: 1.25rem;">🔴</span>
-                        <span style="font-weight: 600; color: #f87171;">{{ alert_count }} alert{{ 's' if alert_count > 1 }} triggered</span>
-                    </div>
-                    {% for a in alert_results %}
-                    <div style="background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); border-radius: 10px; padding: 1rem; margin-bottom: 0.75rem;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                            <span style="font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em;
+                </div>
+                {% else %}
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                    <span style="font-size: 1.25rem;">🔴</span>
+                    <span style="font-weight: 600; color: #f87171;">{{ alert_count }} alert{{ 's' if alert_count > 1 }}
+                        triggered</span>
+                </div>
+                {% for a in alert_results %}
+                <div
+                    style="background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); border-radius: 10px; padding: 1rem; margin-bottom: 0.75rem;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <span style="font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em;
                                 background: {% if a.severity == 'critical' %}rgba(248,113,113,0.2){% else %}rgba(251,191,36,0.2){% endif %};
                                 color: {% if a.severity == 'critical' %}#f87171{% else %}#fbbf24{% endif %};
                                 padding: 0.2rem 0.6rem; border-radius: 999px;">
-                                {{ a.alert_type }} · {{ a.severity }}
-                            </span>
-                            <span style="font-size: 0.75rem; color: var(--text-muted);">{{ a.triggered_at[:19] }}</span>
-                        </div>
-                        <p style="margin: 0; font-size: 0.9rem;">{{ a.message }}</p>
-                        {% if a.details %}
-                        <details style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-muted);">
-                            <summary style="cursor: pointer;">Details</summary>
-                            <pre style="margin-top: 0.25rem; white-space: pre-wrap; word-break: break-all;">{{ a.details }}</pre>
-                        </details>
-                        {% endif %}
+                            {{ a.alert_type }} · {{ a.severity }}
+                        </span>
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">{{ a.triggered_at[:19] }}</span>
                     </div>
-                    {% endfor %}
+                    <p style="margin: 0; font-size: 0.9rem;">{{ a.message }}</p>
+                    {% if a.details %}
+                    <details style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-muted);">
+                        <summary style="cursor: pointer;">Details</summary>
+                        <pre
+                            style="margin-top: 0.25rem; white-space: pre-wrap; word-break: break-all;">{{ a.details }}</pre>
+                    </details>
                     {% endif %}
+                </div>
+                {% endfor %}
+                {% endif %}
                 {% else %}
-                <p style="color: var(--text-muted);">Run a check to see results. Make sure you've generated sensor data first in the Sensor Lab.</p>
+                <p style="color: var(--text-muted);">Run a check to see results. Make sure you've generated sensor data
+                    first in the Sensor Lab.</p>
                 {% endif %}
             </div>
         </div>
@@ -309,16 +361,15 @@
 </div>
 
 <script>
-const S={
-    counting:  [["conteo_4x6","Conteo (4×6)"]],
-    canopy:    [["chlorosis","Chlorosis"],["healthy","Healthy"]],
-    disease:   [["disease_1","Disease Sample"]],
-    anomaly:   [["chlorosis_set","Chlorosis Set"],["disease_set","Disease Set"],["healthy_set","Healthy Baseline"]]
-};
-function updateSets(){const s=document.getElementById('demo-set');s.innerHTML=S[document.getElementById('demo-type').value].map(x=>`<option value="${x[0]}">${x[1]}</option>`).join('')}
-updateSets();
-function clearIfResults(){if(document.querySelector('.demo-pair'))window.location='/ui';}
-document.getElementById('demo-type').addEventListener('change',function(){updateSets();clearIfResults();});
-document.getElementById('analysis-type').addEventListener('change',clearIfResults);
+    const S = {
+        counting: [["conteo_4x6", "Conteo (4×6)"]],
+        disease: [["disease_1", "Disease Sample"]],
+        anomaly: [["chlorosis_set", "Chlorosis Set"], ["disease_set", "Disease Set"], ["healthy_set", "Healthy Baseline"]]
+    };
+    function updateSets() { const s = document.getElementById('demo-set'); s.innerHTML = S[document.getElementById('demo-type').value].map(x => `<option value="${x[0]}">${x[1]}</option>`).join('') }
+    updateSets();
+    function clearIfResults() { const rc = document.getElementById('results-container'); if (rc) rc.style.display = 'none'; }
+    document.getElementById('demo-type').addEventListener('change', function () { updateSets(); clearIfResults(); });
+    document.getElementById('analysis-type').addEventListener('change', clearIfResults);
 </script>
 {% endblock %}

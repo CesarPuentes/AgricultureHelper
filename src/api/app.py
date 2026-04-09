@@ -36,10 +36,6 @@ templates = Jinja2Templates(directory="src/templates")
 
 DEMO_SETS = {
     "counting": {"conteo_4x6": ["GeminiConteo3.jpg", "GeminiConteo4.jpg", "GeminiConteo5.jpg"]},
-    "canopy": {
-        "chlorosis": ["Gemini_clorosis.png", "Gemini_clorosis2.png", "Gemini_clorosis3.png"],
-        "healthy": ["Gemini_sana1.png", "Gemini_sana2.png", "Gemini_sana3.png"],
-    },
     "disease": {"disease_1": ["Gemini_plant_disease1.png"]},
     "anomaly": {
         "chlorosis_set": ["Gemini_clorosis.png", "Gemini_clorosis2.png"],
@@ -200,6 +196,8 @@ async def ui_analyze_image(
             for key in ("chlorosis", "texture", "holes"):
                 if anomaly.get(key, {}).get("debug_path"):
                     anomaly[key]["debug_url"] = f"/static/maps/{os.path.basename(anomaly[key]['debug_path'])}"
+            if anomaly.get("canopy_map"):
+                anomaly["canopy_url"] = f"/static/maps/{os.path.basename(anomaly['canopy_map'])}"
             r["anomaly"] = anomaly
         else:
             map_info = generate_diagnostic_map(upload_path, plant_id=plant_id, output_dir="diagnostic_maps_demo")
@@ -235,6 +233,8 @@ async def ui_run_demo(request: Request, demo_type: str = Form(...), image_set: s
             for key in ("chlorosis", "texture", "holes"):
                 if anomaly.get(key, {}).get("debug_path"):
                     anomaly[key]["debug_url"] = f"/static/maps/{os.path.basename(anomaly[key]['debug_path'])}"
+            if anomaly.get("canopy_map"):
+                anomaly["canopy_url"] = f"/static/maps/{os.path.basename(anomaly['canopy_map'])}"
             r["anomaly"] = anomaly
         else:
             map_info = generate_diagnostic_map(path, plant_id=f"demo_{os.path.splitext(name)[0]}", output_dir="diagnostic_maps_demo")
