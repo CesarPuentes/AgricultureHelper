@@ -1,27 +1,29 @@
-# 🌱 AgricultureHelper: Multi-Agent Plant Monitoring System
+For English, go to [this link](README_en.md)
 
-Welcome to the **AgricultureHelper** repository. This project aims to build a robust, edge-first Multi-Agent System (MAS) to monitor plant health using a combination of environmental sensors and computer vision.
+# 🌱 AgricultureHelper: Sistema de Monitoreo de Plantas Multi-Agente
+
+Bienvenido al repositorio de **AgricultureHelper**. Este proyecto tiene como objetivo construir un Sistema Multi-Agente (MAS) robusto, priorizando el procesamiento local (edge), para monitorear la salud de las plantas utilizando una combinación de sensores ambientales y visión artificial.
 
 ![alt text](Sample.png)
 
-## 🎯 Current Project Focus: Tier 1 MVP
+## 🎯 Enfoque Actual del Proyecto: MVP Nivel 1
 
-We are currently in the early planning and development stages, focusing entirely on a **Frictionless Tier 1 MVP** designed for ultra-low-cost edge devices (e.g., Raspberry Pi) in offline or remote greenhouse environments.
+Actualmente nos encontramos en las etapas iniciales de planificación y desarrollo, enfocándonos completamente en un **MVP Nivel 1 sin fricciones**, diseñado para dispositivos de bajo costo (ej. Raspberry Pi) en entornos de invernaderos remotos o sin conexión a internet.
 
-The architecture is built on a **Blackboard Pattern** and orchestrated via **LangGraph**, ensuring we can later seamlessly plug in heavy Vision-Language Models (VLMs) and Cloud APIs in future scaling phases.
+La arquitectura se basa en un **Patrón de Pizarra (Blackboard)** y está orquestada a través de **LangGraph**, lo que garantiza que más adelante podamos conectar sin problemas modelos pesados de Visión-Lenguaje (VLMs) y APIs en la nube en futuras fases de escalamiento.
 
-### 🚀 Tier 1 Development Roadmap
+### 🚀 Hoja de Ruta del Desarrollo Nivel 1
 
-*   **Phase 1: The "Dumb" Extractors**
-    *   Set up Python OpenCV pipelines to continuously extract an HSV "Green Ratio" as a universal proxy for plant growth/health.
-    *   Deploy MQTT brokers to ingest basic IoT soil/temperature sensors into a local SQLite/TimescaleDB.
-*   **Phase 2: The Anomaly Brain**
-    *   Implement lightweight edge anomaly detection (e.g., `SciKit-Learn IsolationForest`).
-    *   Establish the unified `PlantHealthState` Blackboard.
-*   **Phase 3: The Investigation Router**
-    *   Build the LangGraph Supervisor to route logic (e.g., *Is the green canopy dropping because moisture is low?*).
-*   **Phase 4: The Farmer Interface**
-    *   Deploy a local SMS or Gradio UI to alert the human farmer "In The Loop" whenever an unknown visual anomaly occurs.
+*   **Fase 1: Extractores "Simples"**
+    *   Configurar pipelines de OpenCV en Python para extraer continuamente una "Relación de Verde" HSV como indicador universal del crecimiento/salud de las plantas.
+    *   Desplegar brokers MQTT para ingestar sensores básicos de IoT (suelo/temperatura) en una base de datos local SQLite/TimescaleDB.
+*   **Fase 2: El Cerebro de Anomalías**
+    *   Implementar detección de anomalías ligera en el dispositivo (ej. `SciKit-Learn IsolationForest`).
+    *   Establecer la Pizarra unificada `PlantHealthState`.
+*   **Fase 3: El Enrutador de Investigación**
+    *   Construir el supervisor de LangGraph para enrutar la lógica (ej. *¿Se está reduciendo la cobertura verde porque la humedad es baja?*).
+*   **Fase 4: Interfaz para el Agricultor**
+    *   Desplegar una interfaz local (SMS o Gradio) para alertar al humano "en el circuito" cada vez que ocurra una anomalía visual desconocida.
 
 ## 🛠️ Cómo ejecutar el proyecto
 
@@ -59,9 +61,8 @@ El sistema de visión (ubicado en `src/core/vision_extractor.py`) está diseñad
 Al probar las imágenes desde el frontend o con los tests, el pipeline genera automáticamente un archivo de imagen combinado en formato PNG guardándolo en la carpeta `diagnostic_maps_demo/`. Estos "mapas" proveen *feedback visual* verificable:
 - **Verde Semitransparente**: Capa superpuesta indicando el tejido verde/vivo detectado.
 - **Rojo Semitransparente**: Capa superpuesta indicando lo ignorado (suelo, maceta, o tejido muerto).
-- **Contornos Blancos**: Borde de las hojas o plantas para comprobar la exactitud de segmentación y conteo.
+- **Contornos Blancas**: Borde de las hojas o plantas para comprobar la exactitud de segmentación y conteo.
 - Valores como el Porcentaje de Cobertura quedan impresos sobre la propia imagen.
-
 
 #### Probar los scripts localmente en CLI
 ```bash
@@ -75,11 +76,10 @@ pytest test_api.py
 ---
 
 ### 📷 Consideraciones Técnicas: Ground Sample Distance (GSD)
-Actualmente, el algoritmo de visión (`src/core/vision_extractor.py`) depende de umbrales estáticos en píxeles (ej. eliminar ruido menor a 200px). Esto significa que el sistema es susceptible a errores si la distancia de la cámara a la bandeja cambia (modificando el GSD). 
+Actualmente, el algoritmo de visión (`src/core/vision_extractor.py`) depende de umbrales estáticos en píxeles (ej. eliminar ruido menor a 200px). Esto significa que el sistema es susceptible a errores si la distancia de la cámara a la bandeja cambia (modificando el GSD).
 
 *   **A futuro:** Se recomienda implementar un sistema de calibración dinámica (ej. usando un marcador físico de tamaño conocido en la bandeja) para que el algoritmo calcule la relación de *píxeles/cm* y ajuste los parámetros automáticamente sin importar la altura de la cámara.
 
-
 ---
 
-*For a full breakdown of the agent design and theoretical architecture (including scaling to Tier 2 and Tier 3), see the `multiagent_plant_monitoring_proposal.md`.*
+*Para un desglose completo del diseño del agente y la arquitectura teórica (incluyendo el escalamiento a Nivel 2 y Nivel 3), consulte `multiagent_plant_monitoring_proposal.md`.*
