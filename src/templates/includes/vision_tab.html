@@ -1,0 +1,51 @@
+        <h2 class="section-title">Computer Vision Analysis</h2>
+        <div class="grid grid-2">
+            <!-- Upload Panel -->
+            <div class="glass-panel">
+                <h3 style="margin-bottom: 1rem;">📤 Upload & Analyze</h3>
+                <form action="/ui/analyze" method="post" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label>Analysis Type:</label>
+                        <select name="analysis_type" id="analysis-type" onchange="
+                                document.getElementById('grid-opts').style.display=(this.value==='counting'||this.value==='disease')?'grid':'none';
+                            ">
+                            <option value="counting">🌱 Plant Counting</option>
+                            <option value="disease">🦠 Disease Detection</option>
+                            <option value="anomaly">🔍 Anomaly Detection</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Image:</label>
+                        <input type="file" name="file" accept="image/*" required>
+                    </div>
+                    <div id="grid-opts" class="grid grid-2">
+                        <div class="form-group"><label>Rows:</label><input type="number" name="rows" value="6" min="1">
+                        </div>
+                        <div class="form-group"><label>Cols:</label><input type="number" name="cols" value="4" min="1">
+                        </div>
+                    </div>
+                    <input type="hidden" name="plant_id" value="upload_analysis">
+                    <button type="submit" class="btn">🔬 Analyze</button>
+                </form>
+            </div>
+
+            <!-- Demo Panel -->
+            <div class="glass-panel">
+                <h3 style="margin-bottom: 1rem;">🧪 Pre-configured Demos</h3>
+                <form action="/ui/demo" method="post">
+                    <div class="form-group">
+                        <label>Demo Type:</label>
+                        <select name="demo_type" id="demo-type" onchange="updateSets()">
+                            <option value="counting">🌱 Plant Counting</option>
+                            <option value="disease">🦠 Disease Detection</option>
+                            <option value="anomaly">🔍 Anomaly Detection</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Image Set:</label>
+                        <select name="image_set" id="demo-set"></select>
+                    </div>
+                    <button type="submit" class="btn">▶ Run Demo</button>
+                </form>
+            </div>
+        </div>

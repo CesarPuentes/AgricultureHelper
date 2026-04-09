@@ -2,6 +2,8 @@
 
 Welcome to the **AgricultureHelper** repository. This project aims to build a robust, edge-first Multi-Agent System (MAS) to monitor plant health using a combination of environmental sensors and computer vision.
 
+![alt text](Sample.png)
+
 ## 🎯 Current Project Focus: Tier 1 MVP
 
 We are currently in the early planning and development stages, focusing entirely on a **Frictionless Tier 1 MVP** designed for ultra-low-cost edge devices (e.g., Raspberry Pi) in offline or remote greenhouse environments.
@@ -52,17 +54,16 @@ uvicorn src.api.app:app --reload
 El sistema de visión (ubicado en `src/core/vision_extractor.py`) está diseñado de forma modular para:
 - Calcular el porcentaje de cobertura verde viva (canopy).
 - Contar el número de plantas individuales analizando bandejas de cultivo en cuadrícula.
-- Identificar posibles enfermedades (mediante un modelo opcional de HuggingFace en `disease_classifier.py`).
 
 **Viendo los Mapas de Diagnóstico:**
-Al probar las imágenes desde el frontend o con los tests, el pipeline genera automáticamente un archivo de imagen combinado en formato PNG guardándolo en la carpeta `debug_output/`. Estos "mapas" proveen *feedback visual* verificable:
+Al probar las imágenes desde el frontend o con los tests, el pipeline genera automáticamente un archivo de imagen combinado en formato PNG guardándolo en la carpeta `diagnostic_maps_demo/`. Estos "mapas" proveen *feedback visual* verificable:
 - **Verde Semitransparente**: Capa superpuesta indicando el tejido verde/vivo detectado.
 - **Rojo Semitransparente**: Capa superpuesta indicando lo ignorado (suelo, maceta, o tejido muerto).
 - **Contornos Blancos**: Borde de las hojas o plantas para comprobar la exactitud de segmentación y conteo.
 - Valores como el Porcentaje de Cobertura quedan impresos sobre la propia imagen.
 
+
 #### Probar los scripts localmente en CLI
-También puedes probar las diferentes funciones y simulaciones de visión ejecutando los tests directamente en la consola de comandos:
 ```bash
 # Correr el archivo de pruebas y generación unitaria
 python test_api.py
@@ -75,7 +76,9 @@ pytest test_api.py
 
 ### 📷 Consideraciones Técnicas: Ground Sample Distance (GSD)
 Actualmente, el algoritmo de visión (`src/core/vision_extractor.py`) depende de umbrales estáticos en píxeles (ej. eliminar ruido menor a 200px). Esto significa que el sistema es susceptible a errores si la distancia de la cámara a la bandeja cambia (modificando el GSD). 
+
 *   **A futuro:** Se recomienda implementar un sistema de calibración dinámica (ej. usando un marcador físico de tamaño conocido en la bandeja) para que el algoritmo calcule la relación de *píxeles/cm* y ajuste los parámetros automáticamente sin importar la altura de la cámara.
+
 
 ---
 

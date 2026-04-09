@@ -1,0 +1,166 @@
+        {% if vision_error %}
+        <div class="alert-card">{{ vision_error }}</div>
+        {% endif %}
+
+        {% if results %}
+        <div class="glass-panel" id="results-container" style="margin-top: 0;">
+            <h3 style="margin-bottom: 1.5rem;">{{ result_title|default('Results') }}</h3>
+            {% for r in results %}
+            <div class="demo-pair">
+                {% if r.anomaly %}
+                {# ── Anomaly Detection Results ── #}
+                {% if loop.first %}
+                <details style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 8px;">
+                    <summary style="cursor: pointer; font-weight: 600; color: var(--text-muted);">ℹ️ Analysis Legend & Interpretation Guide</summary>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-top: 1rem; font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+                        <div>
+                            <strong style="color: #fff;">🍃 Canopy:</strong> Measures the area of living green tissue. Used to track overall crop growth and logs sudden wilting in telemetry. Higher % is better.
+                        </div>
+                        <div>
+                            <strong style="color: #fff;">🟡 Anomaly Detected (0-100):</strong> Ratio of stressed (yellow/brown) to healthy pixels. Early warning for water/nutrient stress. Higher scores mean severe discoloration.
+                        </div>
+                    </div>
+                    <p style="margin-top: 1rem; font-style: italic; font-size: 0.75rem; opacity: 0.7;">* Note: All metrics are computer vision estimations and are not 100% accurate.</p>
+                </details>
+                {% endif %}
+                <div style="margin-bottom: 1.5rem;">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                        <img src="{{ r.original_url }}" alt="Original"
+                            style="width: 180px; height: auto; border-radius: 8px; border: 1px solid var(--glass-border);">
+                        <div>
+                            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem;">Composite
+                                Anomaly Score</p>
+                            <span
+                                style="font-size: 2.5rem; font-weight: 700;
+                                color: {% if r.anomaly.anomaly_score > 60 %}#f87171{% elif r.anomaly.anomaly_score > 30 %}#fbbf24{% else %}#34d399{% endif %};">
+                                {{ r.anomaly.anomaly_score }}<span style="font-size: 1rem; opacity: 0.6;">/100</span>
+                            </span>
+                            <p style="margin-top: 0.25rem;">
+                                {% if r.anomaly.needs_attention %}
+                                <span
+                                    style="background: rgba(248,113,113,0.15); color: #f87171; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600;">⚠
+                                    Needs Attention</span>
+                                {% else %}
+                                <span
+                                    style="background: rgba(52,211,153,0.15); color: #34d399; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600;">✓
+                                    Normal</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+
+                    {# Score breakdown cards #}
+                    <div
+                        style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-bottom: 1rem;">
+                        <div class="metric-card" style="border-color: rgba(52,211,153,0.3);">
+                            <div class="metric-label">🍃 Canopy</div>
+                            <div class="metric-value">{{ "%.2f"|format(r.anomaly.canopy_coverage) }}%</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Living
+                                Tissue</div>
+                        </div>
+                        <div class="metric-card"
+                            style="border-color: {% if r.anomaly.chlorosis.score > 40 %}rgba(248,113,113,0.4){% else %}rgba(52,211,153,0.3){% endif %};">
+                            <div class="metric-label">🟡 Anomaly Detected</div>
+                            <div class="metric-value"
+                                style="color: {% if r.anomaly.chlorosis.score > 40 %}#f87171{% else %}#34d399{% endif %};">
+                                {{ r.anomaly.chlorosis.score }}/100</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Green: {{
+                                r.anomaly.chlorosis.green_px }}px · Stress: {{ r.anomaly.chlorosis.stress_px }}px</div>
+                        </div>
+                    </div>
+
+                    {# Debug diagnostic images #}
+                    <div class="demo-images" style="grid-template-columns: repeat(2, 1fr);">
+                        {% if r.anomaly.canopy_url %}
+                        <div>
+                            <p class="demo-label">Canopy Map</p><img src="{{ r.anomaly.canopy_url }}" alt="Canopy">
+                        </div>
+                        {% endif %}
+                        {% if r.anomaly.chlorosis.debug_url %}
+                        <div>
+                            <p class="demo-label">Anomaly Map</p><img src="{{ r.anomaly.chlorosis.debug_url }}"
+                                alt="Anomaly Detected">
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% elif r.predictions %}
+                {# Disease path: original + disease map + per-plant table #}
+                <div class="demo-images">
+                    <div>
+                        <p class="demo-label">Original</p><img src="{{ r.original_url }}" alt="Original">
+                    </div>
+                    {% if r.map_url %}
+                    <div>
+                        <p class="demo-label">Disease Map</p><img src="{{ r.map_url }}" alt="Disease Map">
+                    </div>
+                    {% endif %}
+                </div>
+                {% if r.disease_summary %}
+                <div class="grid grid-3" style="margin-top: 1rem;">
+                    <div class="metric-card">
+                        <div class="metric-label">Total Plants</div>
+                        <div class="metric-value">{{ r.disease_summary.total }}</div>
+                    </div>
+                    <div class="metric-card" style="border-color: rgba(52,211,153,0.3);">
+                        <div class="metric-label">🟢 Healthy</div>
+                        <div class="metric-value" style="color: #34d399;">{{ r.disease_summary.healthy }}</div>
+                    </div>
+                    <div class="metric-card" style="border-color: rgba(248,113,113,0.3);">
+                        <div class="metric-label">🔴 Diseased</div>
+                        <div class="metric-value" style="color: #f87171;">{{ r.disease_summary.diseased }}</div>
+                    </div>
+                </div>
+                {% endif %}
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 1rem;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--glass-border); color: var(--text-muted);">
+                            <th style="padding: 0.5rem; text-align: left;">ROI</th>
+                            <th style="padding: 0.5rem; text-align: left;">Disease / Class</th>
+                            <th style="padding: 0.5rem; text-align: right;">Confidence</th>
+                            <th style="padding: 0.5rem; text-align: center;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in r.predictions %}
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <td style="padding: 0.5rem;">#{{ p.roi }}</td>
+                            <td style="padding: 0.5rem;">{{ p.label|replace('_', ' ') }}</td>
+                            <td style="padding: 0.5rem; text-align: right; font-weight: 600;">{{ "%.1f"|format(p.score *
+                                100) }}%</td>
+                            <td style="padding: 0.5rem; text-align: center;">{% if p.status == 'healthy' %}🟢{% elif
+                                p.status == 'diseased' %}🔴{% else %}🟡{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% elif r.map_url %}
+                {# Canopy/Counting path #}
+                <div class="demo-images">
+                    <div>
+                        <p class="demo-label">Original</p><img src="{{ r.original_url }}" alt="Original">
+                    </div>
+                    <div>
+                        <p class="demo-label">Diagnostic Map</p><img src="{{ r.map_url }}" alt="Map">
+                    </div>
+                </div>
+                <div class="grid grid-3" style="margin-top: 1rem;">
+                    <div class="metric-card">
+                        <div class="metric-label">Canopy</div>
+                        <div class="metric-value">{{ "%.2f"|format(r.coverage_pct) }}%</div>
+                    </div>
+                    {% if r.plant_count is not none %}
+                    <div class="metric-card">
+                        <div class="metric-label">Plants</div>
+                        <div class="metric-value">{{ r.plant_count }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            {% if not loop.last %}
+            <hr style="border-color: var(--glass-border); margin: 2rem 0;">{% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}

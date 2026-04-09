@@ -2,7 +2,7 @@
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from src.core.anomaly_detector import calculate_anomaly_score
+from src.core.anomaly.engine import calculate_anomaly_score
 
 def test(path, label):
     print(f"\n{'='*50}")

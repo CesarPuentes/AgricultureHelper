@@ -2,31 +2,14 @@ import logging
 import os
 import json
 import traceback
+import time
+import shutil
 import google.generativeai as genai
 from typing import Optional
 from PIL import Image
+from .config import _configure_gemini
 
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Configuración Gemini API
-# ---------------------------------------------------------------------------
-def _configure_gemini():
-    api_key = os.getenv("GEMINI_API_KEY")
-    if api_key:
-        genai.configure(api_key=api_key)
-        return True
-    return False
-
-# ---------------------------------------------------------------------------
-# API Pública
-# ---------------------------------------------------------------------------
-def is_available() -> bool:
-    """
-    Returns True if GEMINI_API_KEY is configured in the environment.
-    """
-    return bool(os.getenv("GEMINI_API_KEY"))
-
 
 def classify_disease(image_path: str, top_k: int = 3) -> Optional[list[dict]]:
     """
@@ -80,8 +63,6 @@ def classify_tray_disease(image_path: str, rows: int = 6, cols: int = 4,
                           output_dir: str = "diagnostic_maps_demo") -> Optional[dict]:
     """
     Evaluación de bandeja entera usando Gemini API.
-    A diferencia del método de HuggingFace/PlantCV, enviamos toda la bandeja 
-    y le pedimos a la VLM que analice y cuente directamente las plantas enfermas.
     """
     if not _configure_gemini():
          logger.error("Se intentó llamar a classify_tray_disease pero no hay GEMINI_API_KEY.")
@@ -115,10 +96,7 @@ def classify_tray_disease(image_path: str, rows: int = 6, cols: int = 4,
             
         data = json.loads(text.strip())
         
-        # Replicamos el output requerido por el frontend para no romper la app de FastAPI
-        import shutil
         os.makedirs(output_dir, exist_ok=True)
-        import time
         map_path = os.path.join(output_dir, f"gemini_map_{int(time.time())}.png")
         shutil.copy(image_path, map_path)
 
