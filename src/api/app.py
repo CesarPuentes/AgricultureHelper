@@ -16,6 +16,7 @@ from src.models.models import PlantHealthState, VisionData, AlertResult, Diagnos
 from src.core.vision_extractor import calculate_living_canopy, count_plants, generate_diagnostic_map
 from src.core.alerts import run_all_checks
 from src.core import disease_classifier
+from src.core.anomaly_detector import calculate_anomaly_score
 from src.database.manager import init_db, save_readings, get_recent_readings
 
 os.makedirs("src/static/uploads", exist_ok=True)
@@ -40,6 +41,11 @@ DEMO_SETS = {
         "healthy": ["Gemini_sana1.png", "Gemini_sana2.png", "Gemini_sana3.png"],
     },
     "disease": {"disease_1": ["Gemini_plant_disease1.png"]},
+    "anomaly": {
+        "chlorosis_set": ["Gemini_clorosis.png", "Gemini_clorosis2.png"],
+        "disease_set": ["Gemini_plant_disease1.png", "Gemini_plant_disease2.png"],
+        "healthy_set": ["Gemini_sana1.png", "Gemini_sana2.png"],
+    },
 }
 
 
@@ -183,10 +189,18 @@ async def ui_analyze_image(
         shutil.copyfileobj(file.file, buffer)
     try:
         r = {"original_url": f"/static/uploads/{file.filename}",
-             "map_url": None, "coverage_pct": None, "plant_count": None, "predictions": None}
+             "map_url": None, "coverage_pct": None, "plant_count": None, "predictions": None,
+             "anomaly": None}
         if analysis_type == "disease":
             if disease_classifier.is_available():
                 r["predictions"] = disease_classifier.classify_disease(upload_path)
+        elif analysis_type == "anomaly":
+            anomaly = calculate_anomaly_score(upload_path, output_dir="diagnostic_maps_demo")
+            # Rewrite debug paths to serveable URLs
+            for key in ("chlorosis", "texture", "holes"):
+                if anomaly.get(key, {}).get("debug_path"):
+                    anomaly[key]["debug_url"] = f"/static/maps/{os.path.basename(anomaly[key]['debug_path'])}"
+            r["anomaly"] = anomaly
         else:
             map_info = generate_diagnostic_map(upload_path, plant_id=plant_id, output_dir="diagnostic_maps_demo")
             r["map_url"] = f"/static/maps/{os.path.basename(map_info['map_path'])}"
@@ -212,9 +226,16 @@ async def ui_run_demo(request: Request, demo_type: str = Form(...), image_set: s
         path = os.path.join("test_images", name)
         r = {"original_url": f"/static/test_images/{name}",
              "map_url": None, "coverage_pct": None, "plant_count": None, "predictions": None}
+        r["anomaly"] = None
         if demo_type == "disease":
             if disease_classifier.is_available():
                 r["predictions"] = disease_classifier.classify_disease(path)
+        elif demo_type == "anomaly":
+            anomaly = calculate_anomaly_score(path, output_dir="diagnostic_maps_demo")
+            for key in ("chlorosis", "texture", "holes"):
+                if anomaly.get(key, {}).get("debug_path"):
+                    anomaly[key]["debug_url"] = f"/static/maps/{os.path.basename(anomaly[key]['debug_path'])}"
+            r["anomaly"] = anomaly
         else:
             map_info = generate_diagnostic_map(path, plant_id=f"demo_{os.path.splitext(name)[0]}", output_dir="diagnostic_maps_demo")
             r["map_url"] = f"/static/maps/{os.path.basename(map_info['map_path'])}"
@@ -272,6 +293,19 @@ async def ui_sensor_simulation(request: Request, plant_id: str = Form(...)):
             "active_tab": "sensors",
             "sensor_error": f"Database error: {str(e)}"
         })
+
+
+@app.post("/ui/alerts", response_class=HTMLResponse)
+async def ui_run_alerts(request: Request, plant_id: str = Form(...)):
+    """Run all deterministic alert checks for a plant/sensor ID."""
+    alerts = run_all_checks(plant_id)
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "active_tab": "alerts",
+        "alert_plant_id": plant_id,
+        "alert_results": [a.model_dump() for a in alerts],
+        "alert_count": len(alerts),
+    })
 
 
 if __name__ == "__main__":
