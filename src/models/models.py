@@ -16,6 +16,11 @@ class VisionData(BaseModel):
         None,
         description="Total leaf count estimated across the tray."
     )
+    leaf_map_url: Optional[str] = Field(
+        None,
+        description="URL to the visual map of segmented leaves."
+    )
+
 
 
 class SensorReading(BaseModel):

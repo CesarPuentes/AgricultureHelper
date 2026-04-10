@@ -165,41 +165,75 @@ def count_plants(image_path, rows=6, cols=4, save_map: bool = False, plant_id: s
     print(f"Análisis completado con éxito.")
     return conteo_real if not save_map else (conteo_real, map_info)
 
-def count_leaves(image_path, rows=6, cols=4, watershed_dist=15, min_area=500):
+def count_leaves(image_path, rows=6, cols=4, watershed_dist=15, min_area=500, save_map: bool = False, plant_id: str = "unknown", output_dir: str | None = None):
     """
-    Cuenta el número total de hojas en una bandeja iterando sobre la cuadrícula
-    y aplicando Watershed individualmente a cada planta detectada.
+    Cuenta el número total de hojas en una bandeja aplicando Watershed individualmente
+    y generando una imagen resumen con cajas de colisión y conteos por planta.
     """
-    pcv.outputs.clear() # Asegura que no haya datos residuales
-    
+    out_dir = _ensure_output_dir(output_dir)
+    pcv.outputs.clear()
+
+    # 1. Apagar el debug para trabajar en silencio
+    estado_debug_anterior = pcv.params.debug
+    pcv.params.debug = "None"
+
     img, labeled_mask, _ = _segment_tray_grid(image_path, rows, cols)
-    etiquetas_presentes = np.unique(labeled_mask)
-    total_hojas_bandeja = 0
+    total_hojas = 0
+    etiquetas_plantas = np.unique(labeled_mask)
 
-    print("\n" + "=" * 40)
-    print(f"INICIANDO CONTEO DE HOJAS ({rows}x{cols})")
-    print("-" * 40)
+    # 2. Lienzo resumen (copia de la imagen original)
+    imagen_resumen = img.copy()
 
-    for etiqueta in etiquetas_presentes:
+    print("\nProcesando hojas por planta... por favor espera.")
+
+    for etiqueta in etiquetas_plantas:
         if etiqueta == 0: continue
 
-        area_pld = np.sum(labeled_mask == etiqueta)
+        mascara_planta = np.where(labeled_mask == etiqueta, 255, 0).astype(np.uint8)
+        area_planta = np.count_nonzero(mascara_planta)
         
-        if area_pld > min_area:
+        if area_planta > min_area:
             label_str = f"hojas_roi_{etiqueta}"
-            plant_mask = np.where(labeled_mask == etiqueta, 255, 0).astype(np.uint8)
-
-            pcv.watershed_segmentation(rgb_img=img, mask=plant_mask, distance=watershed_dist, label=label_str)
-            hojas_estimadas = pcv.outputs.observations[label_str]["estimated_object_count"]["value"]
-            total_hojas_bandeja += hojas_estimadas
             
-            print(f"  - ROI {etiqueta} | Área: {area_pld} px | Hojas: {hojas_estimadas}")
-        else:
-            print(f"  - ROI {etiqueta} | Área: {area_pld} px | (Área insuficiente, ignorada)")
+            # Watershed en silencio
+            pcv.watershed_segmentation(rgb_img=img, mask=mascara_planta, distance=watershed_dist, label=label_str)
+            
+            hojas_planta = pcv.outputs.observations[label_str]["estimated_object_count"]["value"]
+            total_hojas += hojas_planta
+            
+            # Dibujar caja y texto en la imagen resumen
+            contornos, _ = cv2.findContours(mascara_planta, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if contornos:
+                cv2.drawContours(imagen_resumen, contornos, -1, (255, 255, 255), 1) # Contorno sutil
+                x, y, w, h = cv2.boundingRect(max(contornos, key=cv2.contourArea))
+                
+                # Rectángulo y background del texto
+                cv2.rectangle(imagen_resumen, (x, y), (x + w, y + h), (255, 200, 0), 2)
+                texto = f"Hojas: {hojas_planta}"
+                (w_txt, h_txt), _ = cv2.getTextSize(texto, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+                cv2.rectangle(imagen_resumen, (x, max(0, y - h_txt - 10)), (x + w_txt, max(0, y)), (0, 0, 0), -1)
+                cv2.putText(imagen_resumen, texto, (x, max(15, y - 5)), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2, cv2.LINE_AA)
+            
+            print(f"  - ROI {etiqueta} | Hojas: {hojas_planta}")
 
-    print("-" * 40)
-    print(f"TOTAL DE HOJAS DETECTADAS: {total_hojas_bandeja}")
-    print("=" * 40 + "\n")
+    print(f"TOTAL HOJAS: {total_hojas}\n")
+
+    # Letrero grande con el total general
+    cv2.rectangle(imagen_resumen, (10, 10), (450, 70), (0, 0, 0), -1)
+    cv2.putText(imagen_resumen, f"TOTAL HOJAS: {total_hojas}", (20, 50), 
+                cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255, 0), 3, cv2.LINE_AA)
+
+    map_path = None
+    if save_map:
+        timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"leaf_summary_{plant_id}_{timestamp_str}.png"
+        map_path = os.path.join(out_dir, filename)
+        cv2.imwrite(map_path, imagen_resumen)
+        print(f"Resumen de hojas guardado en: {map_path}")
+
+    # Restaurar debug y limpiar
+    pcv.params.debug = estado_debug_anterior
+    pcv.outputs.clear()
     
-    pcv.outputs.clear() # Limpia al terminar para no afectar otros flujos
-    return total_hojas_bandeja
+    return (total_hojas, map_path) if save_map else total_hojas

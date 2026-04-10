@@ -141,9 +141,17 @@
                     <div>
                         <p class="demo-label">Original</p><img src="{{ r.original_url }}" alt="Original">
                     </div>
+                    {% if r.map_url %}
                     <div>
                         <p class="demo-label">Diagnostic Map</p><img src="{{ r.map_url }}" alt="Map">
                     </div>
+                    {% endif %}
+                    {% if r.leaf_map_url %}
+                    <div>
+                        <p class="demo-label">Leaf Segmentation (Watershed)</p><img src="{{ r.leaf_map_url }}" alt="Leaf Map">
+                    </div>
+                    {% endif %}
+
                 </div>
                 <div class="grid grid-3" style="margin-top: 1rem;">
                     <div class="metric-card">
