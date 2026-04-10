@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from src.models.models import PlantHealthState, VisionData, AlertResult, DiagnosticMapResult
-from src.core.vision_extractor import calculate_living_canopy, count_plants, generate_diagnostic_map
+from src.core.vision_extractor import calculate_living_canopy, count_plants, generate_diagnostic_map, count_leaves
 from src.core.alerts import run_all_checks
 from src.core.disease import service as disease_classifier
 from src.core.anomaly.engine import calculate_anomaly_score
@@ -72,8 +72,9 @@ async def analyze_plant_image(request: AnalyzeRequest):
         raise HTTPException(status_code=500, detail="Vision extraction failed.")
 
     plant_count = count_plants(request.image_path, rows=request.rows, cols=request.cols)
+    leaf_count = count_leaves(request.image_path, rows=request.rows, cols=request.cols)
     
-    vision_data = VisionData(living_coverage_pct=coverage, plant_count=plant_count)
+    vision_data = VisionData(living_coverage_pct=coverage, plant_count=plant_count, leaf_count=leaf_count)
 
     needs_review = False
     reason = None
@@ -203,7 +204,7 @@ async def ui_analyze_image(
         shutil.copyfileobj(file.file, buffer)
     try:
         r = {"original_url": f"/static/uploads/{file.filename}",
-             "map_url": None, "coverage_pct": None, "plant_count": None, "predictions": None,
+             "map_url": None, "coverage_pct": None, "plant_count": None, "leaf_count": None, "predictions": None,
              "anomaly": None}
         if analysis_type == "disease":
             if disease_classifier.is_available():
@@ -223,6 +224,7 @@ async def ui_analyze_image(
             r["coverage_pct"] = map_info["coverage_pct"]
             if analysis_type == "counting":
                 r["plant_count"] = count_plants(upload_path, rows=rows, cols=cols)
+                r["leaf_count"] = count_leaves(upload_path, rows=rows, cols=cols)
         rid = str(uuid.uuid4())
         _UI_RESULTS_CACHE[rid] = {
             "active_tab": "vision",
@@ -255,7 +257,7 @@ async def ui_run_demo(request: Request, demo_type: str = Form(...), image_set: s
     for name in images:
         path = os.path.join("test_images", name)
         r = {"original_url": f"/static/test_images/{name}",
-             "map_url": None, "coverage_pct": None, "plant_count": None, "predictions": None}
+             "map_url": None, "coverage_pct": None, "plant_count": None, "leaf_count": None, "predictions": None}
         r["anomaly"] = None
         if demo_type == "disease":
             if disease_classifier.is_available():
@@ -274,6 +276,7 @@ async def ui_run_demo(request: Request, demo_type: str = Form(...), image_set: s
             r["coverage_pct"] = map_info["coverage_pct"]
             if demo_type == "counting":
                 r["plant_count"] = count_plants(path, rows=6, cols=4)
+                r["leaf_count"] = count_leaves(path, rows=6, cols=4)
         results.append(r)
             
     rid = str(uuid.uuid4())
@@ -312,7 +315,8 @@ async def ui_sensor_simulation(request: Request, plant_id: str = Form(...)):
                 "temperature_c": heat_array[i],
                 "light_lux": float(light_array[i]),
                 "living_coverage_pct": canopy_results[i],
-                "plant_count": int(count_results[i])
+                "plant_count": int(count_results[i]),
+                "leaf_count": int(count_results[i] * 4 + np.random.randint(-2, 3)) if count_results[i] > 0 else 0
             })
             
         save_readings(readings_to_save)

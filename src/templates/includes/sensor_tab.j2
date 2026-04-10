@@ -29,6 +29,7 @@
                                 <th style="padding: 0.75rem 0.5rem;">Soil Moist.</th>
                                 <th style="padding: 0.75rem 0.5rem;">Air Temp</th>
                                 <th style="padding: 0.75rem 0.5rem;">Canopy</th>
+                                <th style="padding: 0.75rem 0.5rem;">Leaves</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -38,7 +39,9 @@
                                 <td style="padding: 0.75rem 0.5rem;">{{ "%.1f"|format(r.soil_moisture_pct) }}%</td>
                                 <td style="padding: 0.75rem 0.5rem;">{{ "%.1f"|format(r.temperature_c) }}°C</td>
                                 <td style="padding: 0.75rem 0.5rem;">{{ "%.1f"|format(r.living_coverage_pct) }}%</td>
+                                <td style="padding: 0.75rem 0.5rem;">{{ r.leaf_count|default(0) }}</td>
                             </tr>
+
                             {% endfor %}
                         </tbody>
                     </table>

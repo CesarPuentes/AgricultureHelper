@@ -156,6 +156,13 @@
                         <div class="metric-value">{{ r.plant_count }}</div>
                     </div>
                     {% endif %}
+                    {% if r.leaf_count is not none %}
+                    <div class="metric-card">
+                        <div class="metric-label">Estimated Leaves</div>
+                        <div class="metric-value">{{ r.leaf_count }}</div>
+                    </div>
+                    {% endif %}
+
                 </div>
                 {% endif %}
             </div>

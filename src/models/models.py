@@ -12,6 +12,11 @@ class VisionData(BaseModel):
         None,
         description="Plant count from watershed segmentation."
     )
+    leaf_count: Optional[int] = Field(
+        None,
+        description="Total leaf count estimated across the tray."
+    )
+
 
 class SensorReading(BaseModel):
     """Representa una única lectura en un momento específico."""
