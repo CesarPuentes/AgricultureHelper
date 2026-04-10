@@ -4,7 +4,7 @@
 <div class="tabs">
     <input type="radio" name="tabs" id="tab1" {% if active_tab !='sensors' and active_tab !='alerts' %}checked{% endif
         %}>
-    <label for="tab1">📸 Vision Lab</label>
+    <label for="tab1">📸 Vision Lab Demo</label>
     <div class="tab">
         {% include 'includes/vision_tab.j2' %}
         {% include 'includes/vision_results.j2' %}
@@ -36,5 +36,16 @@
     function clearIfResults() { const rc = document.getElementById('results-container'); if (rc) rc.style.display = 'none'; }
     document.getElementById('demo-type').addEventListener('change', function () { updateSets(); clearIfResults(); });
     document.getElementById('analysis-type').addEventListener('change', clearIfResults);
+
+    // Show loading overlay on form submissions
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', function () {
+            // Only show for analysis/demo forms, not necessarily for simple sensor configs
+            const action = this.getAttribute('action');
+            if (action.includes('analyze') || action.includes('demo')) {
+                document.getElementById('loading-overlay').style.setProperty('display', 'flex', 'important');
+            }
+        });
+    });
 </script>
 {% endblock %}
