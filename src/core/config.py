@@ -63,19 +63,6 @@ class AnomalyThresholds:
     STRESS_YELLOW_UPPER: tuple = (35, 255, 255)
 
 
-# ---------------------------------------------------------------------------
-# Thresholds de Alertas
-# ---------------------------------------------------------------------------
-class AlertThresholds:
-    """Thresholds para el sistema de alertas (Capa 0)."""
-    
-    # Watchdog: minutos máximos de silencio antes de alerta
-    MAX_SILENCE_MINUTES: int = 130  # ~2h 10min
-    
-    # Vision Delta: ventana de comparación y umbral
-    VISION_DELTA_HOURS: int = 4
-    VISION_DELTA_THRESHOLD_PCT: float = 5.0
-
 
 # ---------------------------------------------------------------------------
 # Configuración de PlantCV

@@ -13,9 +13,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from src.models.models import PlantHealthState, VisionData, AlertResult, DiagnosticMapResult
+from src.models.models import PlantHealthState, VisionData, DiagnosticMapResult
 from src.core.vision_extractor import calculate_living_canopy, count_plants, generate_diagnostic_map, count_leaves
-from src.core.alerts import run_all_checks
 from src.core.llm_api import service as disease_classifier
 from src.core.anomaly.engine import calculate_anomaly_score
 from src.database.manager import init_db, save_readings, get_recent_readings
@@ -108,24 +107,6 @@ async def analyze_plant_image(request: AnalyzeRequest):
         requires_farmer_review=needs_review,
         anomaly_reason=reason,
     )
-
-
-# ---------------------------------------------------------------------------
-# Capa 0: Alertas
-# ---------------------------------------------------------------------------
-@app.get("/api/alerts/{plant_id}")
-async def get_alerts(plant_id: str):
-    """
-    Ejecuta los checks de Capa 0 (Watchdog + Delta de Visión) para un sensor.
-    Retorna lista de alertas activas.
-    """
-    alerts = run_all_checks(plant_id)
-    return {
-        "plant_id": plant_id,
-        "alert_count": len(alerts),
-        "alerts": [a.model_dump() for a in alerts],
-    }
-
 
 # ---------------------------------------------------------------------------
 # Mapa de Diagnóstico Visual
@@ -365,21 +346,6 @@ async def ui_sensor_simulation(request: Request, plant_id: str = Form(...)):
         }
         return RedirectResponse(url=f"/ui?results_id={rid}", status_code=303)
 
-
-@app.post("/ui/alerts", response_class=HTMLResponse)
-async def ui_run_alerts(request: Request, plant_id: str = Form(...)):
-    """Run all deterministic alert checks for a plant/sensor ID."""
-    alerts = run_all_checks(plant_id)
-    rid = str(uuid.uuid4())
-    _UI_RESULTS_CACHE[rid] = {
-        "active_tab": "alerts",
-        "data": {
-            "alert_plant_id": plant_id,
-            "alert_results": [a.model_dump() for a in alerts],
-            "alert_count": len(alerts),
-        }
-    }
-    return RedirectResponse(url=f"/ui?results_id={rid}", status_code=303)
 
 
 if __name__ == "__main__":

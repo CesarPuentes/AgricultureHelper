@@ -16,13 +16,6 @@
     <div class="tab">
         {% include 'includes/sensor_tab.j2' %}
     </div>
-
-    <!-- Alerts Lab Tab -->
-    <input type="radio" name="tabs" id="tab3" {% if active_tab=='alerts' %}checked{% endif %}>
-    <label for="tab3">🚨 Alerts Lab</label>
-    <div class="tab">
-        {% include 'includes/alerts_tab.j2' %}
-    </div>
 </div>
 
 <script>

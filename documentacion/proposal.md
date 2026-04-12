@@ -81,8 +81,8 @@ Drawing from the **Unified Theory of Agents** taxonomy:
 
 **Tier 1: Ultra-Low Cost / Remote Edge (Raspberry Pi, Offline)**
 *   **The Problem:** Cannot run heavy Vision-Language Models (VLMs); zero budget; spotty or zero internet.
-*   **The Solution:** The Vision Agent acts entirely as a **"Dumb Green Pixel Extractor"** and relies on a **Deterministic Alert Engine**. A tiny Python script runs hourly, extracting the percentage of green pixels. If the *Delta Coverage* drops >5% in 4 hours, it triggers a catastrophic wilting alert.
-*   **Agentic Logic (The Investigation Router):** The deterministic code acts as the *peripheral nervous system* detecting symptoms. The actual AI Agent acts as the *cerebral cortex*. It sleeps until the deterministic engine wakes it up with an anomalous symptom. It reads the local history (sensors, vision) and reasons out a diagnosis before alerting the farmer.
+*   **The Solution:** The Vision Agent tracks the percentage of green pixels to establish a health baseline.
+*   **Agentic Logic (The Investigation Router):** The Vision Agent monitors symptoms. If an anomaly is detected, it triggers the Agent to analyze local history (sensors, vision) and reason out a diagnosis before alerting the farmer.
 
 **Tier 2: Medium-End Local (Consumer GPU, e.g., RTX 3060/4060 12GB)**
 *   **The Problem:** Needs automation and intelligent diagnosis but wants to avoid recurring cloud API costs or relies on a local farm server.
@@ -108,7 +108,7 @@ Drawing from the **Unified Theory of Agents** taxonomy:
 | **Model (Tier 1)**| Pure Python Math & Scikit-Learn (No LLM required at the edge) |
 | **Logic Engine**| 1. **VPD Calculation**: Vapor Pressure Deficit against a local `crop_profiles` DB.<br>2. **Z-Score / Isolation Forest**: Unsupervised anomaly detection.<br>3. **Hardware Watchdog**: Ensures sensors are alive. |
 | **Architecture** | **Deterministic/Reactive** — triggers the Investigation Router upon detecting a symptom. |
-| **Output** | Anomaly symptom: `{sensor: "soil_moisture", vpd_status: "critical", z_score: 3.2}` |
+| **Output** | Anomaly symptom: `{sensor: "soil_moisture", vpd_status: "critical"}` |
 
 **Strategy**: "Zero-Setup for Farmers". Deploy at the edge alongside a predefined `crop_profiles` database. The farmer selects "Tomato", loading optimal VPD thresholds automatically. The Sensor Agent uses Isolation Forests to learn specific greenhouse variations over time, ensuring reliability without manual threshold tuning.
 
@@ -262,7 +262,7 @@ This roadmap focuses entirely on delivering a working **Tier 1 (Raspberry Pi / O
 | Phase | Developer Focus | Key Deliverables |
 |:------|:----------------|:-----------------|
 | **Phase 1: The "Dumb" Extractors** | Build the continuous data pipelines (No AI yet). | 1. Python script (OpenCV) extracting HSV Green Ratio from a camera.<br>2. MQTT broker pipeline to ingest DHT11/soil sensors.<br>3. Store all raw data in a local SQLite/TimescaleDB. |
-| **Phase 2: The Deterministic Alert Engine** | Implement cheap, edge-friendly deterministic alerts. | 1. Implement VPD calculation against a `crop_profiles.json` DB.<br>2. Simple Z-Score/Isolation Forest logic to detect sensor outliers.<br>3. The **Blackboard** (`PlantHealthState`): A unified JSON state that holds the current numbers and anomaly symptoms. |
+| **Phase 2: The Anomaly Engine** | Implement cheap, edge-friendly anomaly detection. | 1. Implement VPD calculation against a `crop_profiles.json` DB.<br>2. Simple logic to detect sensor outliers.<br>3. The **Blackboard** (`PlantHealthState`): A unified JSON state that holds the current numbers and anomaly symptoms. |
 | **Phase 3: The Investigation Router (AI Supervisor)** | The "Cerebral Cortex" analyzing symptoms. | 1. LangGraph StateGraph that sleeps until a symptom is flagged in the Blackboard.<br>2. Logic rule: *If Delta Green Ratio drops >5%, wake up AI Agent.*<br>3. AI looks at 5-day history and diagnoses the true cause before alerting the farmer. |
 | **Phase 4: The Farmer Interface** | Human-in-the-Loop receiving filtered intelligence. | 1. Implement the **Farmer Agent** via a local Gradio UI or Streamlit.<br>2. Farmer receives an actionable diagnosis (not raw data).<br>3. Farmer logs the diagnosis back into the system to close the loop. |
 
