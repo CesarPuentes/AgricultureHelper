@@ -29,8 +29,17 @@ CROP_BASELINES = {
     }
 }
 
-def evaluate_reading(reading: dict, crop: str = "arabidopsis") -> str:
+def evaluate_reading(reading: dict, crop: str = "arabidopsis", prev_reading: dict = None) -> str:
     """Evaluate if reading is within nominal crop limits."""
+    if prev_reading:
+        p_count, prev_p_count = reading.get("plant_count"), prev_reading.get("plant_count")
+        if p_count is not None and prev_p_count is not None and p_count < prev_p_count:
+            return "alert"
+            
+        l_count, prev_l_count = reading.get("leaf_count"), prev_reading.get("leaf_count")
+        if l_count is not None and prev_l_count is not None and l_count < prev_l_count:
+            return "alert"
+
     baseline = CROP_BASELINES.get(crop)
     if not baseline:
         return "normal"

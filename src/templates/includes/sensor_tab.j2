@@ -12,6 +12,15 @@
                         <label>Target Plant ID:</label>
                         <input type="text" name="plant_id" value="{{ plant_id|default('test_plant_01') }}" required>
                     </div>
+                    <div class="form-group" style="margin-top: 1rem; margin-bottom: 1rem;">
+                        <label>Simulation Scenario:</label>
+                        <select name="scenario" class="select-css" style="width: 100%; padding: 0.5rem; border-radius: 4px; background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--glass-border);">
+                            <option value="normal">Normal (Healthy Growth)</option>
+                            <option value="heat_spike">Heat Spike (Temp > 24C)</option>
+                            <option value="plant_drop">Plant Die-off (Count Drop)</option>
+                            <option value="drought">Drought (Low Humidity & Soil Moisture)</option>
+                        </select>
+                    </div>
                     <button type="submit" class="btn">💾 Generate & Save 10-Day History</button>
                     {% if sensor_error %}
                     <div class="alert-card" style="margin-top: 1rem;">{{ sensor_error }}</div>

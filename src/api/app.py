@@ -296,7 +296,7 @@ async def ui_run_demo(request: Request, demo_type: str = Form(...), image_set: s
     return RedirectResponse(url=f"/ui?results_id={rid}", status_code=303)
 
 @app.post("/ui/sensor", response_class=HTMLResponse)
-async def ui_sensor_simulation(request: Request, plant_id: str = Form(...)):
+async def ui_sensor_simulation(request: Request, plant_id: str = Form(...), scenario: str = Form("normal")):
     """Generate and save 10 days of sensor history, then show it."""
     try:
         n = 10
@@ -310,6 +310,18 @@ async def ui_sensor_simulation(request: Request, plant_id: str = Form(...)):
         
         canopy_results = np.linspace(1.0, 35.5, n).round(1).tolist()
         count_results = [0, 2, 5, 8, 10, 12, 14, 14, 14, 14]
+
+        if scenario == "heat_spike":
+            heat_array[6] = 29.0
+            heat_array[7] = 30.5
+        elif scenario == "plant_drop":
+            count_results[8] = 12
+            count_results[9] = 10
+        elif scenario == "drought":
+            soil_moisture_array[7] = 15.0
+            soil_moisture_array[8] = 10.0
+            humidity_array[7] = 30.0
+            humidity_array[8] = 25.0
         
         readings_to_save = []
         for i in range(n):
@@ -324,7 +336,8 @@ async def ui_sensor_simulation(request: Request, plant_id: str = Form(...)):
                 "plant_count": int(count_results[i]),
                 "leaf_count": int(count_results[i] * 4 + np.random.randint(-2, 3)) if count_results[i] > 0 else 0
             }
-            reading["status"] = evaluate_reading(reading, crop="arabidopsis")
+            prev = readings_to_save[-1] if readings_to_save else None
+            reading["status"] = evaluate_reading(reading, crop="arabidopsis", prev_reading=prev)
             readings_to_save.append(reading)
             
         save_readings(readings_to_save)
