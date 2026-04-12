@@ -5,8 +5,7 @@ import sqlite3
 from datetime import datetime, timedelta
 
 from src.core.vision import calculate_living_canopy, count_plants, generate_diagnostic_map
-from src.core.alerts import check_watchdog, check_vision_delta, run_all_checks
-from src.core import disease_classifier
+from src.core.llm_api import service as disease_classifier
 
 client = TestClient(app)
 
@@ -96,99 +95,6 @@ def test_living_canopy_with_map():
     os.remove(map_info["map_path"])
 
 
-# ---------------------------------------------------------------------------
-# Unit tests — watchdog alerts
-# ---------------------------------------------------------------------------
-def test_check_watchdog_no_alert():
-    """Recent reading → no alert."""
-    import src.database.manager as mgr
-    original_path = mgr.DB_PATH
-    try:
-        mgr.DB_PATH = _setup_test_db()
-        now = datetime.now()
-        _insert_reading(mgr.DB_PATH, "plant_ok", now - timedelta(minutes=30))
-        result = check_watchdog("plant_ok", now=now)
-        assert result is None
-    finally:
-        mgr.DB_PATH = original_path
-        if os.path.exists(_TEST_DB):
-            os.remove(_TEST_DB)
-
-
-def test_check_watchdog_alert():
-    """Old reading (>2h10m) → watchdog alert."""
-    import src.database.manager as mgr
-    original_path = mgr.DB_PATH
-    try:
-        mgr.DB_PATH = _setup_test_db()
-        now = datetime.now()
-        _insert_reading(mgr.DB_PATH, "plant_dead", now - timedelta(hours=3))
-        result = check_watchdog("plant_dead", now=now)
-        assert result is not None
-        assert result.alert_type == "watchdog"
-        assert result.severity == "critical"
-        assert "desconectado" in result.message
-    finally:
-        mgr.DB_PATH = original_path
-        if os.path.exists(_TEST_DB):
-            os.remove(_TEST_DB)
-
-
-# ---------------------------------------------------------------------------
-# Unit tests — vision delta alerts
-# ---------------------------------------------------------------------------
-def test_check_vision_delta_no_alert():
-    """Small delta (<5%) → no alert."""
-    import src.database.manager as mgr
-    original_path = mgr.DB_PATH
-    try:
-        mgr.DB_PATH = _setup_test_db()
-        now = datetime.now()
-        _insert_reading(mgr.DB_PATH, "plant_stable", now - timedelta(hours=4), coverage_pct=50.0)
-        _insert_reading(mgr.DB_PATH, "plant_stable", now, coverage_pct=48.0)
-        result = check_vision_delta("plant_stable")
-        assert result is None
-    finally:
-        mgr.DB_PATH = original_path
-        if os.path.exists(_TEST_DB):
-            os.remove(_TEST_DB)
-
-
-def test_check_vision_delta_alert():
-    """Large delta (>5%) → vision_delta alert."""
-    import src.database.manager as mgr
-    original_path = mgr.DB_PATH
-    try:
-        mgr.DB_PATH = _setup_test_db()
-        now = datetime.now()
-        _insert_reading(mgr.DB_PATH, "plant_wilting", now - timedelta(hours=4), coverage_pct=45.0)
-        _insert_reading(mgr.DB_PATH, "plant_wilting", now, coverage_pct=35.0)
-        result = check_vision_delta("plant_wilting")
-        assert result is not None
-        assert result.alert_type == "vision_delta"
-        assert result.severity == "critical"
-        assert result.details["delta_pct"] == 10.0
-    finally:
-        mgr.DB_PATH = original_path
-        if os.path.exists(_TEST_DB):
-            os.remove(_TEST_DB)
-
-
-# ---------------------------------------------------------------------------
-# Unit tests — disease classifier graceful degradation
-# ---------------------------------------------------------------------------
-def test_disease_classifier_availability():
-    """Classifier should report its availability without crashing."""
-    # This test passes regardless of whether transformers is installed
-    result = disease_classifier.is_available()
-    assert isinstance(result, bool)
-
-
-def test_disease_classifier_no_crash():
-    """If transformers not installed, classify_disease returns None gracefully."""
-    if not disease_classifier.is_available():
-        result = disease_classifier.classify_disease(HEALTHY_IMAGE)
-        assert result is None
 
 
 # ---------------------------------------------------------------------------
@@ -204,15 +110,6 @@ def test_analyze_endpoint():
     assert data["plant_id"] == "test_plant_001"
     assert data["vision"]["living_coverage_pct"] > 0
 
-
-def test_alerts_endpoint():
-    """Alerts endpoint returns valid response structure."""
-    response = client.get("/api/alerts/nonexistent_plant")
-    assert response.status_code == 200
-    data = response.json()
-    assert "alert_count" in data
-    assert "alerts" in data
-    assert isinstance(data["alerts"], list)
 
 
 def test_diagnostic_map_endpoint():

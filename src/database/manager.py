@@ -28,6 +28,11 @@ def init_db():
         cursor.execute("ALTER TABLE sensor_readings ADD COLUMN leaf_count INTEGER")
     except sqlite3.OperationalError:
         pass # Column already exists
+        
+    try:
+        cursor.execute("ALTER TABLE sensor_readings ADD COLUMN status TEXT")
+    except sqlite3.OperationalError:
+        pass
 
     conn.commit()
     conn.close()
@@ -43,8 +48,8 @@ def save_readings(readings: List[Dict[str, Any]]):
     query = '''
         INSERT INTO sensor_readings (
             plant_id, timestamp, air_humidity_rh, soil_moisture_pct, 
-            temperature_c, light_lux, living_coverage_pct, plant_count, leaf_count
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            temperature_c, light_lux, living_coverage_pct, plant_count, leaf_count, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     '''
 
     
@@ -58,7 +63,8 @@ def save_readings(readings: List[Dict[str, Any]]):
             r.get('light_lux'),
             r.get('living_coverage_pct'),
             r.get('plant_count'),
-            r.get('leaf_count')
+            r.get('leaf_count'),
+            r.get('status')
         ) for r in readings
     ]
 

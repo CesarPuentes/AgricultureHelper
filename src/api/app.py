@@ -18,6 +18,7 @@ from src.core.vision import calculate_living_canopy, count_plants, generate_diag
 from src.core.llm_api import service as disease_classifier
 from src.core.anomaly.engine import calculate_anomaly_score
 from src.database.manager import init_db, save_readings, get_recent_readings
+from src.core.analysis.plant_state import evaluate_reading
 
 os.makedirs("src/static/uploads", exist_ok=True)
 os.makedirs("diagnostic_maps_demo", exist_ok=True)
@@ -312,7 +313,7 @@ async def ui_sensor_simulation(request: Request, plant_id: str = Form(...)):
         
         readings_to_save = []
         for i in range(n):
-            readings_to_save.append({
+            reading = {
                 "plant_id": plant_id,
                 "timestamp": timestamps[i],
                 "air_humidity_rh": humidity_array[i],
@@ -322,7 +323,9 @@ async def ui_sensor_simulation(request: Request, plant_id: str = Form(...)):
                 "living_coverage_pct": canopy_results[i],
                 "plant_count": int(count_results[i]),
                 "leaf_count": int(count_results[i] * 4 + np.random.randint(-2, 3)) if count_results[i] > 0 else 0
-            })
+            }
+            reading["status"] = evaluate_reading(reading, crop="arabidopsis")
+            readings_to_save.append(reading)
             
         save_readings(readings_to_save)
         recent = get_recent_readings(plant_id)

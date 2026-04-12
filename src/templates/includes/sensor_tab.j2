@@ -30,6 +30,7 @@
                                 <th style="padding: 0.75rem 0.5rem;">Air Temp</th>
                                 <th style="padding: 0.75rem 0.5rem;">Canopy</th>
                                 <th style="padding: 0.75rem 0.5rem;">Leaves</th>
+                                <th style="padding: 0.75rem 0.5rem;">Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -40,6 +41,11 @@
                                 <td style="padding: 0.75rem 0.5rem;">{{ "%.1f"|format(r.temperature_c) }}°C</td>
                                 <td style="padding: 0.75rem 0.5rem;">{{ "%.1f"|format(r.living_coverage_pct) }}%</td>
                                 <td style="padding: 0.75rem 0.5rem;">{{ r.leaf_count|default(0) }}</td>
+                                <td style="padding: 0.75rem 0.5rem;">
+                                    <span style="padding: 0.2rem 0.5rem; border-radius: 4px; {% if r.status == 'alert' %}background-color: rgba(255,50,50,0.2); color: #ff6b6b;{% else %}background-color: rgba(50,255,50,0.2); color: #51cf66;{% endif %}">
+                                        {{ r.status|default('normal')|title }}
+                                    </span>
+                                </td>
                             </tr>
 
                             {% endfor %}
