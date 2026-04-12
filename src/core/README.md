@@ -11,7 +11,7 @@ This package focus on detecting physiological shifts without necessarily naming 
 - **`detectors.py`**: Individual computer vision algorithms for Chlorosis (Active).
 - **`utils.py`**: Low-level image processing utilities (masking, labeling, and debug output).
 
-### 📂 `disease/`
+### 📂 `llm_api/`
 *The VLM-Based Diagnostic Agent.*
 Handles high-level disease classification by leveraging Large Multimodal Models (LMMs).
 - **`config.py`**: Manages Gemini API initialization and availability checks.
@@ -36,4 +36,4 @@ Contains the logic for the immediate alert system.
 The core logic follows a hierarchical approach:
 1. **Tier 0** (`alerts.py`): Real-time, non-visual/simple-visual checks for immediate action.
 2. **Tier 1** (`anomaly/`): Explainable Computer Vision metrics for growth tracking.
-3. **Tier 2** (`disease/`): Complex, AI-driven diagnostics for specific pathogen naming.
+3. **Tier 2** (`llm_api/`): Complex, AI-driven diagnostics for specific pathogen naming.
