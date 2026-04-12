@@ -1,29 +1,39 @@
-import os
-from datetime import datetime
+"""
+anomaly/utils.py — Utilidades de Detección de Anomalías
+======================================================
+Funciones de bajo nivel para algoritmos de detección de anomalías.
+Ahora usa utils compartidas del núcleo para máscaras y debugging.
+"""
+
 import cv2
 import numpy as np
 from plantcv import plantcv as pcv
 
-def _plant_mask(image_path: str):
-    """Read image → PlantCV LAB-a segmentation → (BGR image, binary mask)."""
-    img, _, _ = pcv.readimage(filename=image_path)
-    a = pcv.rgb2gray_lab(rgb_img=img, channel='a')
-    thresh = pcv.threshold.otsu(gray_img=a, object_type='dark')
-    mask = pcv.fill(bin_img=thresh, size=150)
-    return img, mask
+from ..utils import create_lab_mask, draw_label_pill, save_debug_image
+from ..config import AnomalyThresholds
 
 
-def _save_debug(image, name: str, output_dir: str) -> str:
-    """Save diagnostic image, return path."""
-    os.makedirs(output_dir, exist_ok=True)
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    path = os.path.join(output_dir, f"{name}_{ts}.png")
-    cv2.imwrite(path, image)
-    return path
+def chlorosis_mask(image_path: str):
+    """
+    Calcula máscaras para tejido verde saludable y estresado (clorosis).
+    
+    Args:
+        image_path: Ruta a la imagen.
+    
+    Returns:
+        tuple: (original_image, green_mask, stress_mask)
+    """
+    original_image, plant_mask = create_lab_mask(image_path)
+    hsv_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2HSV)
 
+    # Threshold for healthy green and stressed yellow/brown
+    green_healthy_mask = cv2.bitwise_and(
+        cv2.inRange(hsv_image, AnomalyThresholds.HEALTHY_GREEN_LOWER, AnomalyThresholds.HEALTHY_GREEN_UPPER),
+        plant_mask
+    )
+    stress_yellow_mask = cv2.bitwise_and(
+        cv2.inRange(hsv_image, AnomalyThresholds.STRESS_YELLOW_LOWER, AnomalyThresholds.STRESS_YELLOW_UPPER),
+        plant_mask
+    )
 
-def _label(img, x, y, text, color):
-    """Draw a labeled pill on the image."""
-    sz = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)[0]
-    cv2.rectangle(img, (x, y - sz[1] - 6), (x + sz[0] + 8, y + 4), color, -1)
-    cv2.putText(img, text, (x + 4, y - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+    return original_image, green_healthy_mask, stress_yellow_mask

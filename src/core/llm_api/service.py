@@ -1,27 +1,74 @@
+"""
+llm_api/service.py — Servicio de Clasificación con Modelos VLM
+==============================================================
+Funciones para clasificación de enfermedades usando Gemini Vision.
+Refactored en Phase 2 para usar utils compartidas y LLMConfig.
+"""
+
 import logging
-import os
-import json
-import traceback
-import time
 import shutil
-import google.generativeai as genai
+import traceback
 from typing import Optional
+
+import google.generativeai as genai
 from PIL import Image
+
+from ..config import LLMConfig
+from ..utils import ensure_output_dir
 from .config import _configure_gemini
 
 logger = logging.getLogger(__name__)
 
+
+def _configure_model():
+    """Configura y retorna el modelo Gemini, o None si no hay API key."""
+    if not _configure_gemini():
+        return None
+    return genai.GenerativeModel(LLMConfig.GEMINI_MODEL)
+
+
+def _clean_json_response(text: str) -> str:
+    """
+    Limpia el texto de respuesta para asegurar que es JSON parseable.
+    
+    Elimina markers de código como ```json y ```
+    """
+    text = text.strip()
+    
+    # Manejar ```json ... ```
+    if text.startswith("```json"):
+        text = text[7:]
+        if text.endswith("```"):
+            text = text[:-3]
+    # Manejar ``` ... ``` genérico
+    elif text.startswith("```"):
+        text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+    
+    return text.strip()
+
+
 def classify_disease(image_path: str, top_k: int = 3) -> Optional[list[dict]]:
     """
     Clasifica posibles enfermedades en una imagen usando Gemini Vision.
-    Returns list of dicts with 'label' and 'score', or None.
+    
+    Args:
+        image_path: Ruta a la imagen.
+        top_k: Número máximo de enfermedades a retornar.
+    
+    Returns:
+        list[dict]: Lista de dicts con 'label' y 'score', o None si hay error.
     """
-    if not _configure_gemini():
-        logger.error("Se intentó llamar a classify_disease pero no hay GEMINI_API_KEY configurado en el entorno.")
+    model = _configure_model()
+    if model is None:
+        logger.error(
+            "Se intentó llamar a classify_disease pero no hay GEMINI_API_KEY "
+            "configurado en el entorno."
+        )
         return None
 
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
         img = Image.open(image_path)
         
         prompt = f"""
@@ -38,19 +85,9 @@ def classify_disease(image_path: str, top_k: int = 3) -> Optional[list[dict]]:
         """
         
         response = model.generate_content([prompt, img])
+        text = _clean_json_response(response.text)
+        results = __import__("json").loads(text)
         
-        # Limpiar el output para asegurar que es JSON parseable
-        text = response.text.strip()
-        if text.startswith("```json"):
-            text = text[7:]
-            if text.endswith("```"):
-                text = text[:-3]
-        elif text.startswith("```"):
-            text = text[3:]
-            if text.endswith("```"):
-                text = text[:-3]
-                
-        results = json.loads(text.strip())
         return results[:top_k]
         
     except Exception as e:
@@ -59,17 +96,32 @@ def classify_disease(image_path: str, top_k: int = 3) -> Optional[list[dict]]:
         return None
 
 
-def classify_tray_disease(image_path: str, rows: int = 6, cols: int = 4,
-                          output_dir: str = "diagnostic_maps_demo") -> Optional[dict]:
+def classify_tray_disease(
+    image_path: str,
+    rows: int = 6,
+    cols: int = 4,
+    output_dir: str | None = None,
+) -> Optional[dict]:
     """
     Evaluación de bandeja entera usando Gemini API.
+    
+    Args:
+        image_path: Ruta a la imagen de la bandeja.
+        rows: Filas de la cuadrícula (para calcular total esperado).
+        cols: Columnas de la cuadrícula.
+        output_dir: Directorio para copiar el mapa (usa DEFAULT_DEBUG_DIR si None).
+    
+    Returns:
+        dict: Resultados con map_path, per_plant, y summary.
     """
-    if not _configure_gemini():
-         logger.error("Se intentó llamar a classify_tray_disease pero no hay GEMINI_API_KEY.")
-         return None
+    model = _configure_model()
+    if model is None:
+        logger.error(
+            "Se intentó llamar a classify_tray_disease pero no hay GEMINI_API_KEY."
+        )
+        return None
 
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash') 
         img = Image.open(image_path)
         
         prompt = f"""
@@ -88,29 +140,38 @@ def classify_tray_disease(image_path: str, rows: int = 6, cols: int = 4,
         """
         
         response = model.generate_content([prompt, img])
-        text = response.text.strip()
-        if text.startswith("```json"):
-            text = text[7:-3]
-        elif text.startswith("```"):
-            text = text[3:-3]
-            
-        data = json.loads(text.strip())
+        text = _clean_json_response(response.text)
+        data = __import__("json").loads(text)
         
-        os.makedirs(output_dir, exist_ok=True)
-        map_path = os.path.join(output_dir, f"gemini_map_{int(time.time())}.png")
+        # Copiar imagen original como mapa usando util compartida
+        out_dir = ensure_output_dir(output_dir)
+        import time
+        map_filename = f"gemini_map_{int(time.time())}.png"
+        map_path = out_dir / map_filename
         shutil.copy(image_path, map_path)
 
+        # Construir lista per-plant
         per_plant = []
         for i in range(data.get('healthy', 0)):
-            per_plant.append({"roi": i, "label": "healthy", "score": 0.99, "status": "healthy"})
+            per_plant.append({
+                "roi": i, 
+                "label": "healthy", 
+                "score": 0.99, 
+                "status": "healthy"
+            })
         for i in range(data.get('diseased', 0)):
-            per_plant.append({"roi": 99, "label": "diseased", "score": 0.99, "status": "diseased"})
+            per_plant.append({
+                "roi": 99, 
+                "label": "diseased", 
+                "score": 0.99, 
+                "status": "diseased"
+            })
 
         return {
-            "map_path": map_path,
+            "map_path": str(map_path),
             "per_plant": per_plant,
             "summary": {
-                "total": data.get('total', rows*cols), 
+                "total": data.get('total', rows * cols), 
                 "healthy": data.get('healthy', 0), 
                 "diseased": data.get('diseased', 0),
                 "ai_explanation": data.get('explanation', '')

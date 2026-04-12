@@ -1,15 +1,36 @@
+"""
+anomaly/engine.py — Motor de Detección de Anomalías
+==================================================
+Orquestador que ejecuta todos los detectores y calcula el score compuesto.
+"""
+
 import os
+
 from .detectors import chlorosis_score
-from src.core.vision_extractor import calculate_living_canopy
+from ..config import AnomalyThresholds
+from ..vision_extractor import calculate_living_canopy
+
 
 def calculate_anomaly_score(image_path: str, output_dir: str = "diagnostic_maps_demo") -> dict:
     """
-    Run chlorosis + texture + holes on one image.
-    Returns individual scores + weighted composite (0–100).
+    Ejecuta análisis completo de anomalías en una imagen.
+    
+    Args:
+        image_path: Ruta a la imagen de entrada.
+        output_dir: Directorio para mapas de debug.
+    
+    Returns:
+        dict: Scores individuales + score compuesto + paths de debug.
     """
     chlor = chlorosis_score(image_path, output_dir)
     
-    canopy_res = calculate_living_canopy(image_path, save_map=True, plant_id=f"anomaly_{os.path.basename(image_path).split('.')[0]}", output_dir=output_dir)
+    canopy_res = calculate_living_canopy(
+        image_path,
+        save_map=True,
+        plant_id=f"anomaly_{os.path.basename(image_path).split('.')[0]}",
+        output_dir=output_dir
+    )
+    
     if isinstance(canopy_res, tuple):
         canopy_coverage, canopy_map_info = canopy_res
         canopy_map_path = canopy_map_info["map_path"]
@@ -17,9 +38,9 @@ def calculate_anomaly_score(image_path: str, output_dir: str = "diagnostic_maps_
         canopy_coverage = canopy_res or 0.0
         canopy_map_path = None
 
-    # Composite now only reflects chlorosis (weighted 100%)
+    # Composite refleja clorosis (weighted 100%)
     composite = chlor["score"]
-    needs_attention = composite > 40
+    needs_attention = composite > AnomalyThresholds.CHLOROSIS_ATTENTION_THRESHOLD
 
     return {
         "anomaly_score": composite,
