@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from src.models.models import PlantHealthState, VisionData, DiagnosticMapResult
-from src.core.vision_extractor import calculate_living_canopy, count_plants, generate_diagnostic_map, count_leaves
+from src.core.vision import calculate_living_canopy, count_plants, generate_diagnostic_map, count_leaves
 from src.core.llm_api import service as disease_classifier
 from src.core.anomaly.engine import calculate_anomaly_score
 from src.database.manager import init_db, save_readings, get_recent_readings

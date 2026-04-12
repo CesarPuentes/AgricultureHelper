@@ -8,7 +8,7 @@ import os
 
 from .detectors import chlorosis_score
 from ..config import AnomalyThresholds
-from ..vision_extractor import calculate_living_canopy
+from ..vision import calculate_living_canopy
 
 
 def calculate_anomaly_score(image_path: str, output_dir: str = "diagnostic_maps_demo") -> dict:

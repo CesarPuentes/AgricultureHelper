@@ -4,7 +4,7 @@ import os
 import sqlite3
 from datetime import datetime, timedelta
 
-from src.core.vision_extractor import calculate_living_canopy, count_plants, generate_diagnostic_map
+from src.core.vision import calculate_living_canopy, count_plants, generate_diagnostic_map
 from src.core.alerts import check_watchdog, check_vision_delta, run_all_checks
 from src.core import disease_classifier
 
